@@ -1,4 +1,4 @@
-﻿ using AuthService.Domain.Abstactions;
+﻿using AuthService.Domain.Abstactions;
 using AuthService.Domain.DTOs;
 using AuthService.Domain.Models;
 using Microsoft.AspNetCore.Http;

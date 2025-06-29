@@ -14,5 +14,6 @@ namespace UserService.Application.DTOs
         public DateOnly? EstimatedAt { get; set; }
         public string? Description { get; set; }
         public IFormFile? MainPhoto { get; set; }
+        public bool? DeleteMainPhoto { get; set; }
     }
 }

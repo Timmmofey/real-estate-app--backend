@@ -77,7 +77,7 @@ namespace AuthService.API.Controllers
         [HttpPost("Refresh")]
         public async Task<IActionResult> Refresh()
         {
-            // 1. Чтение deviceId из device-token
+            // 1. Чтение device-token
             Guid deviceId;
 
             var errorResult = TryGetDeviceIdFromCookie(out deviceId);

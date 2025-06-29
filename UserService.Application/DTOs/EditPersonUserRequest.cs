@@ -11,5 +11,6 @@ namespace UserService.Application.DTOs
         public string? Settlement { get; set; }
         public string? ZipCode { get; set; }
         public IFormFile? MainPhoto { get; set; }
+        public bool? DeleteMainPhoto { get; set; }
     }
 }

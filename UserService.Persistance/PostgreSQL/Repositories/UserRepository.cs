@@ -238,8 +238,8 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             if (estimatedAt != null)
                 profile.EstimatedAt = (DateOnly)estimatedAt;
 
-            if (!string.IsNullOrEmpty(mainPhotoUrl))
-                profile.MainPhotoUrl = mainPhotoUrl;
+            if (!string.IsNullOrEmpty(mainPhotoUrl) && mainPhotoUrl != "__DELETE__")
+                profile.MainPhotoUrl = mainPhotoUrl == "__DELETE__" ? null : mainPhotoUrl;
 
             if (!string.IsNullOrEmpty(description))
                 profile.Description = description;

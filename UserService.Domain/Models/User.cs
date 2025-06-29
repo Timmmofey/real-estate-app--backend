@@ -31,7 +31,7 @@ namespace UserService.Domain.Models
             Role = role;
         }
 
-        private User(Guid id, string email, string passwordHash, string phoneNumber, UserRole role, bool? isVerified, bool? isBlocked,  bool? isSoftDeleted, bool? isPermanantlyDeleted, DateTime? createdAt,  DateTime? deletedAt)
+        private User(Guid id, string email, string passwordHash, string phoneNumber, UserRole role, bool? isVerified, bool? isBlocked, bool? isSoftDeleted, bool? isPermanantlyDeleted, DateTime? createdAt, DateTime? deletedAt)
         {
             Id = id;
             Email = email;

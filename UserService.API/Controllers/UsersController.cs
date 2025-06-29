@@ -128,7 +128,7 @@ namespace UserService.API.Controllers
             string? companyMainPhotoUrl = null;
             string? prevMainPhotoUrl = null;
 
-            if (updatedProfile.MainPhoto != null)
+            if (updatedProfile.MainPhoto != null || updatedProfile.DeleteMainPhoto == true)
             {
                 prevMainPhotoUrl = await _userService.GetUserMainPhotoUrlByUserId(userId);
             }
@@ -144,10 +144,17 @@ namespace UserService.API.Controllers
 
             try
             {
-                if (!string.IsNullOrEmpty(prevMainPhotoUrl))
+                if (!string.IsNullOrEmpty(prevMainPhotoUrl) && updatedProfile.DeleteMainPhoto != true)
                 {
                     companyMainPhotoUrl = await UploadPhotoAsync(updatedProfile.MainPhoto, "userProfileImages");
                     await DeletePhotoAsync(prevMainPhotoUrl);
+                }
+
+                if (updatedProfile.DeleteMainPhoto == true)
+                {
+                    companyMainPhotoUrl = "__DELETE__";
+
+                    await DeletePhotoAsync(prevMainPhotoUrl!);
                 }
 
                 await _userService.PatchPersonProfileAsync(userId, updatedFiedls, companyMainPhotoUrl);
@@ -172,7 +179,7 @@ namespace UserService.API.Controllers
             string? companyMainPhotoUrl = null;
             string? prevMainPhotoUrl = null;
 
-            if (updatedProfile.MainPhoto != null)
+            if (updatedProfile.MainPhoto != null && updatedProfile.DeleteMainPhoto != true)
             {
                 prevMainPhotoUrl = await _userService.GetUserMainPhotoUrlByUserId(userId);
             }
@@ -196,6 +203,12 @@ namespace UserService.API.Controllers
                 {
                     companyMainPhotoUrl = await UploadPhotoAsync(updatedProfile.MainPhoto, "userProfileImages");
                     await DeletePhotoAsync(prevMainPhotoUrl);
+                }
+
+                if (updatedProfile.DeleteMainPhoto == true)
+                {
+                    companyMainPhotoUrl = "__DELETE__";
+                    await DeletePhotoAsync(prevMainPhotoUrl!);
                 }
 
                 await _userService.PatchCompanyProfileAsync(userId, updatedFields, companyMainPhotoUrl);
