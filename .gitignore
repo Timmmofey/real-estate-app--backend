@@ -1,0 +1,59 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build results
+bin/
+obj/
+
+# Rider
+.idea/
+
+# NuGet
+*.nupkg
+packages/
+*.snupkg
+
+# Visual Studio Code
+.vscode/
+
+# Logs
+*.log
+
+# DotCover
+*.dotCover
+
+# ReSharper
+_ReSharper*/
+*.DotSettings.user
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Others
+*.bak
+*.backup
+*.swp
+*~
+
+# Ignore publish output folder if exists
+publish/
+
+# Ignore IIS Express config files
+/.vs/

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>3d7dca76-0c04-454b-a855-7b80a64e63de</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.5">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AuthService.Application\AuthService.Application.csproj" />
+    <ProjectReference Include="..\AuthService.Domain\AuthService.Domain.csproj" />
+    <ProjectReference Include="..\AuthService.Infrastructure\AuthService.Infrastructure.csproj" />
+    <ProjectReference Include="..\AuthService.Persistance\AuthService.Persistance.csproj" />
+  </ItemGroup>
+
+</Project>
