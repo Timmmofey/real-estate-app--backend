@@ -1,9 +1,10 @@
-﻿using FluentValidation;
-using Microsoft.AspNetCore.Identity.Data;
+﻿using AuthService.Domain.DTOs;
+using FluentValidation;
+using System.Text.RegularExpressions;
 
 namespace AuthService.Application.Validators
 {
-    public class LoginRequestValidator : AbstractValidator<LoginRequest>
+    public class LoginRequestValidator : AbstractValidator<LoginRequestDto>
     {
         public LoginRequestValidator()
         {
@@ -13,7 +14,7 @@ namespace AuthService.Application.Validators
 
             RuleFor(x => x.Password)
                 .NotEmpty().WithMessage("Password is required")
-                .MinimumLength(6).WithMessage("Password must be at least 6 characters");
+                .MinimumLength(5).WithMessage("Password must be at least 5 characters");
         }
 
         private bool BeValidPhoneOrEmail(string value)

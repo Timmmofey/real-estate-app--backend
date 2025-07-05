@@ -53,12 +53,20 @@ builder.Services.AddJwtAuthentication(configuration);
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowOnlyUserService", policy =>
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+
+    options.AddPolicy("AllowUserService", policy =>
     {
         policy.WithOrigins("http://localhost:5120")
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials(); // если используешь куки
+              .AllowCredentials();
     });
 });
 
@@ -71,6 +79,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+
+
 // ƒобавл€ем мидлвар дл€ глобальной обработки ошибок
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
@@ -81,5 +91,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+
+
+app.UseCors("AllowFrontend");
 
 app.Run();

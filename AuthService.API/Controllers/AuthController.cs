@@ -2,6 +2,7 @@
 using AuthService.Domain.DTOs;
 using Classified.Shared.Constants;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using System.IdentityModel.Tokens.Jwt;
 
@@ -20,6 +21,7 @@ namespace AuthService.API.Controllers
             _jwtProvider = jwtProvider;
         }
 
+        [AllowAnonymous]
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginRequestDto dto)
         {
@@ -130,8 +132,34 @@ namespace AuthService.API.Controllers
                 return errorResult;
 
             await _authService.LogoutAync(deviceId);
+
+            Response.Cookies.Append("classified-auth-token", "", new CookieOptions
+            {
+                Expires = DateTimeOffset.UtcNow.AddDays(-1),
+                HttpOnly = true,
+                Secure = true, // Только если у тебя HTTPS
+                SameSite = SameSiteMode.None
+            });
+
+            Response.Cookies.Append("classified-refresh-token", "", new CookieOptions
+            {
+                Expires = DateTimeOffset.UtcNow.AddDays(-1),
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None
+            });
+
+            Response.Cookies.Append("classified-device-id-token", "", new CookieOptions
+            {
+                Expires = DateTimeOffset.UtcNow.AddDays(-1),
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None
+            });
+
             return NoContent();
         }
+
 
         [Authorize]
         [HttpPost("logout-all")]
@@ -189,7 +217,7 @@ namespace AuthService.API.Controllers
             return Ok(sessions);
         }
 
-        //[EnableCors("AllowOnlyUserService")]
+        [EnableCors("AllowUserService")]
         [HttpGet("get-password-reset-token")]
         public IActionResult getResetPasswordResetToken(string userId)
         {

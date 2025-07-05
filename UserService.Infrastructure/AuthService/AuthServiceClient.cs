@@ -19,7 +19,6 @@ namespace UserService.Infrastructure.AuthService
             if (!response.IsSuccessStatusCode)
                 return null;
 
-            // Прочитать строку (предположительно JWT) из тела ответа
             return await response.Content.ReadAsStringAsync();
         }
 
@@ -30,7 +29,6 @@ namespace UserService.Infrastructure.AuthService
             if (!response.IsSuccessStatusCode)
                 return null;
 
-            // Прочитать строку (предположительно JWT) из тела ответа
             return await response.Content.ReadAsStringAsync();
         }
     }

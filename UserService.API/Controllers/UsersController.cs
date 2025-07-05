@@ -12,6 +12,7 @@ using UserService.Infrastructure.AuthService;
 using UserService.Domain.Abstactions;
 using Newtonsoft.Json;
 using Classified.Shared.Infrastructure.EmailService;
+using Microsoft.AspNetCore.Cors;
 
 namespace UserService.API.Controllers
 {
@@ -121,19 +122,35 @@ namespace UserService.API.Controllers
         {
             var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
             if (!Guid.TryParse(userIdClaim, out var userId))
-            {
                 return Unauthorized();
-            }
 
-            string? companyMainPhotoUrl = null;
+            // получаем текущее фото, если будет загрузка или удаление
             string? prevMainPhotoUrl = null;
-
             if (updatedProfile.MainPhoto != null || updatedProfile.DeleteMainPhoto == true)
             {
                 prevMainPhotoUrl = await _userService.GetUserMainPhotoUrlByUserId(userId);
             }
 
-            var updatedFiedls = new EditPersonUserDto{
+            // Подготовим URL нового фото или флаг удаления
+            string? newPhotoUrl = null;
+            if (updatedProfile.DeleteMainPhoto == true)
+            {
+                newPhotoUrl = "__DELETE__";
+            }
+            else if (updatedProfile.MainPhoto != null)
+            {
+                newPhotoUrl = await UploadPhotoAsync(updatedProfile.MainPhoto, "userProfileImages");
+            }
+
+            // Когда новое фото загружено или удалено — удаляем старое
+            if (!string.IsNullOrEmpty(prevMainPhotoUrl))
+            {
+                await DeletePhotoAsync(prevMainPhotoUrl);
+            }
+
+            // Формируем DTO без фото
+            var updatedFields = new EditPersonUserDto
+            {
                 FirstName = updatedProfile.FirstName,
                 LastName = updatedProfile.LastName,
                 Country = updatedProfile.Country,
@@ -144,20 +161,8 @@ namespace UserService.API.Controllers
 
             try
             {
-                if (!string.IsNullOrEmpty(prevMainPhotoUrl) && updatedProfile.DeleteMainPhoto != true)
-                {
-                    companyMainPhotoUrl = await UploadPhotoAsync(updatedProfile.MainPhoto, "userProfileImages");
-                    await DeletePhotoAsync(prevMainPhotoUrl);
-                }
-
-                if (updatedProfile.DeleteMainPhoto == true)
-                {
-                    companyMainPhotoUrl = "__DELETE__";
-
-                    await DeletePhotoAsync(prevMainPhotoUrl!);
-                }
-
-                await _userService.PatchPersonProfileAsync(userId, updatedFiedls, companyMainPhotoUrl);
+                // Сохраняем все вместе: поля + новое фото или флаг удаления
+                await _userService.PatchPersonProfileAsync(userId, updatedFields, newPhotoUrl);
                 return NoContent();
             }
             catch (InvalidOperationException e)
@@ -165,6 +170,7 @@ namespace UserService.API.Controllers
                 return NotFound(e.Message);
             }
         }
+
 
         [Authorize(Roles = "Company")]
         [HttpPatch("edit-company-profile-main-info")]
@@ -367,8 +373,9 @@ namespace UserService.API.Controllers
             }
         }
 
-        [HttpGet("get-password-reset-token-via-email")]
-        public async Task<IActionResult> GetPasswordResetTokenViaEmail([FromForm] GetPasswordResetTokenDto dto)
+        //[EnableCors("AllowAuthService")]
+        [HttpPost("get-password-reset-token-via-email")]
+        public async Task<IActionResult> GetPasswordResetTokenViaEmail([FromBody] GetPasswordResetTokenDto dto)
         {
             
                 if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.VerificationCode))
@@ -482,7 +489,7 @@ namespace UserService.API.Controllers
             }
         }
 
-
+        [EnableCors("AllowAuthService")]
         [HttpGet("get-email-reset-token-via-email")]
         public async Task<IActionResult> getEmailResetTokenViaEmailViaEmail([FromForm] GetEmailResetTokenViaEmailDto dto)
         {

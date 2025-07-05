@@ -7,6 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Jwt\**" />
+    <EmbeddedResource Remove="Jwt\**" />
+    <None Remove="Jwt\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Confluent.Kafka" Version="2.10.0" />
     <PackageReference Include="StackExchange.Redis" Version="2.8.41" />
@@ -15,10 +21,6 @@
   <ItemGroup>
     <ProjectReference Include="..\UserService.Application\UserService.Application.csproj" />
     <ProjectReference Include="..\UserService.Domain\UserService.Domain.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Jwt\" />
   </ItemGroup>
 
 </Project>

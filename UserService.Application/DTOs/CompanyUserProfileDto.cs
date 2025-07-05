@@ -2,13 +2,6 @@
 {
     public class CompanyUserProfileDto
     {
-        //public string CompanyName { get; set; } = default!;
-        //public string CompanyAddress { get; set; } = default!;
-        //public string EIN { get; set; } = default!;
-        //public DateOnly EstimatedAt { get; set; } = default!;
-        //public string? Description { get; set; }
-        //public string? MainPhotoUrl { get; set; }
-
         public string Name { get; set; } = default!;
         public string Country { get; set; } = default!;
         public string Region { get; set; } = default!;
