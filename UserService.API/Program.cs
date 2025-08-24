@@ -12,7 +12,8 @@ using UserService.Infrastructure.Kafka;
 using Classified.Shared.Infrastructure.EmailService;
 using UserService.Infrastructure.AuthService;
 using StackExchange.Redis;
-using UserService.Infrastructure.RedisService;
+using Classified.Shared.Infrastructure.RedisService;
+//using UserService.Infrastructure.RedisService;
 
 
 var builder = WebApplication.CreateBuilder(args);

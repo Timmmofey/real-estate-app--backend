@@ -4,6 +4,7 @@ using UserService.Application.DTOs;
 using UserService.Domain.Exeptions;
 using Classified.Shared.Constants;
 using UserService.Application.Abstactions;
+using Amazon;
 
 namespace UserService.Application.Services
 {
@@ -151,6 +152,13 @@ namespace UserService.Application.Services
 
         public async Task<object?> GetUserProfileInfo(Guid userId, UserRole role)
         {
+            var user = await _userRepository.GetUserById(userId);
+
+            if (user == null)
+            {
+                throw new NotImplementedException();
+            }
+
             if (role == UserRole.Person)
             {
                 var profile = await _userRepository.GetPersonUserInfoByIdAsync(userId);
@@ -164,6 +172,7 @@ namespace UserService.Application.Services
                 {
                     FirstName = profile.FirstName,
                     LastName = profile.LastName,
+                    isVerified = user.IsVerified,
                     MainPhotoUrl = profile?.MainPhotoUrl,
                     Country = profile?.Country,
                     Region = profile?.Region,

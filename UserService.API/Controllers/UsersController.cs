@@ -9,10 +9,10 @@ using Classified.Shared.Constants;
 using UserService.Application.DTOs;
 using UserService.Application.Abstactions;
 using UserService.Infrastructure.AuthService;
-using UserService.Domain.Abstactions;
 using Newtonsoft.Json;
 using Classified.Shared.Infrastructure.EmailService;
 using Microsoft.AspNetCore.Cors;
+using Classified.Shared.Infrastructure.RedisService;
 
 namespace UserService.API.Controllers
 {
@@ -302,7 +302,7 @@ namespace UserService.API.Controllers
             }
         }
 
-        [HttpGet("get-personal-info")]
+        [HttpGet("get-users-info")]
         public async Task<IActionResult> GetPersonalInfo()
         {
             

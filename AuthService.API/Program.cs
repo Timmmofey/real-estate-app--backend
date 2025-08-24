@@ -82,7 +82,7 @@ if (app.Environment.IsDevelopment())
 
 
 // Добавляем мидлвар для глобальной обработки ошибок
-app.UseMiddleware<GlobalExceptionMiddleware>();
+//app.UseMiddleware<GlobalExceptionMiddleware>();
 
 app.UseHttpsRedirection();
 

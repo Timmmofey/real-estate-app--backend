@@ -16,9 +16,30 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             _context = context;
         }
 
-        public async Task GetUserById(Guid userId)
+        public async Task<User?> GetUserById(Guid userId)
         {
-            await _context.Users.FirstOrDefaultAsync(user => user.Id == userId); 
+            var userEntity = await _context.Users.FirstOrDefaultAsync(user => user.Id == userId);
+
+            if (userEntity == null)
+            {
+                return null;
+            }
+
+            var (user, error) = User.Create(
+               userEntity.Id,
+               userEntity.Email,
+               userEntity.PasswordHash,
+               userEntity.PhoneNumber,
+               (UserRole)userEntity.Role,
+               userEntity.IsVerified,
+               userEntity.IsBlocked,
+               userEntity.IsSoftDeleted,
+               userEntity.IsPermanantlyDeleted,
+               userEntity.CreatedAt,
+               userEntity.DeletedAt
+           );
+
+            return user;
         }
 
         public async Task AddPersonUserAsync(User user, PersonProfile profile)
@@ -154,14 +175,14 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             if (!string.IsNullOrEmpty(mainPhotoUrl))
                 profile.MainPhotoUrl = mainPhotoUrl == "__DELETE__" ? null : mainPhotoUrl;
 
-            if (!string.IsNullOrEmpty(country) && country != "__DELETE__")
-                profile.Country = country;
+            if (!string.IsNullOrEmpty(country))
+                profile.Country = country == "__DELETE__" ? null : country;
 
-            if (!string.IsNullOrEmpty(region) && region != "__DELETE__")
-                profile.Region = region;
+            if (!string.IsNullOrEmpty(region))
+                profile.Region = region == "__DELETE__" ? null : region;
 
-            if (!string.IsNullOrEmpty(settlement) && settlement != "__DELETE__")
-                profile.Settlement = settlement;
+            if (!string.IsNullOrEmpty(settlement))
+                profile.Settlement = settlement == "__DELETE__" ? null : settlement;
 
             if (!string.IsNullOrEmpty(zipCode))
                 profile.ZipCode = zipCode == "__DELETE__" ? null : zipCode;

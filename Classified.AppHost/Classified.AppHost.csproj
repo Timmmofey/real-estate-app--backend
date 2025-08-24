@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AuthService.API\AuthService.API.csproj" />
+    <ProjectReference Include="..\GeoService.API\GeoService.API.csproj" />
     <ProjectReference Include="..\UserService.API\UserService.API.csproj" />
   </ItemGroup>
 
