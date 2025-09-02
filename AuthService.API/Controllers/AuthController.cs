@@ -226,12 +226,18 @@ namespace AuthService.API.Controllers
         }
 
         [HttpGet("get-email-reset-token")]
-        public IActionResult getResetEmailResetToken(string userId)
+        public IActionResult getResetEmailResetToken(string userId, string newEmail)
         {
-            var resetPasswordJwt = _jwtProvider.GenerateResetEmailResetToken(Guid.Parse(userId));
+            var resetPasswordJwt = _jwtProvider.GenerateResetEmailResetToken(Guid.Parse(userId), newEmail);
             return Ok(resetPasswordJwt);
         }
 
+        [HttpGet("get-request-new-email-cofirmation-token")]
+        public IActionResult getRequestNewEmailCofirmationToken(string userId)
+        {
+            var resetPasswordJwt = _jwtProvider.GenerateRequestNewEmailCofirmationToken(Guid.Parse(userId));
+            return Ok(resetPasswordJwt);
+        }
 
         /// <summary>
         ///

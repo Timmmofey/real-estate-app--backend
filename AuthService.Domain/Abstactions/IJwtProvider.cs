@@ -9,7 +9,8 @@ namespace AuthService.Domain.Abstactions
         string GenerateRestoreToken(Guid Id);
         public string GenerateDeviceToken(Guid deviceId);
         public string GenerateResetPasswordResetToken(Guid userId);
-        public string GenerateResetEmailResetToken(Guid userId);
+        public string GenerateResetEmailResetToken(Guid userId, string newEmail);
+        public string GenerateRequestNewEmailCofirmationToken(Guid userId);
 
     }
 }

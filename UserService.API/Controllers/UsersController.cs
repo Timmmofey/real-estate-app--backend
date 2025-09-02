@@ -471,10 +471,10 @@ namespace UserService.API.Controllers
             {
                 var emailResetCode = Guid.NewGuid().ToString().Substring(0, 11).Replace("-", "").ToUpper();
 
-                var redisData = new { Code = emailResetCode };
+                var redisData = new { Code = emailResetCode, UserId = userId };
 
                 await _redisService.SetAsync(
-                    key: $"email-reset:{userIdClaim}",
+                    key: $"old-password-cofirmation-code:{userId}",
                     value: System.Text.Json.JsonSerializer.Serialize(redisData),
                     expiration: TimeSpan.FromMinutes(5)
                 );
@@ -489,15 +489,17 @@ namespace UserService.API.Controllers
             }
         }
 
-        [EnableCors("AllowAuthService")]
-        [HttpGet("get-email-reset-token-via-email")]
-        public async Task<IActionResult> getEmailResetTokenViaEmailViaEmail([FromForm] GetEmailResetTokenViaEmailDto dto)
+        [HttpPost("confirm-old-email")]
+        public async Task<IActionResult> confirmOldEmail([FromForm] EmailResetVerificationCodeDto dto)
         {
-            
-                var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
+            var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
+
+            if (!Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized();
+
             try
             {
-                var redisValue = await _redisService.GetAsync($"email-reset:{userIdClaim}");
+                var redisValue = await _redisService.GetAsync($"old-password-cofirmation-code:{userId}");
 
                 if (string.IsNullOrEmpty(redisValue))
                     return BadRequest("Verification code expired or not found");
@@ -509,21 +511,103 @@ namespace UserService.API.Controllers
                 if (!string.Equals(storedCode, dto.verificationCode, StringComparison.OrdinalIgnoreCase))
                     return BadRequest("Invalid verification code");
 
-                var resetEmailToken = await _authService.getEmailResetToken(Guid.Parse(userIdClaim!));
+                var resetEmailToken = await _authService.getRequestNewEmailCofirmationToken(userId);
 
                 if (string.IsNullOrEmpty(resetEmailToken))
-                    return StatusCode(500, "Failed to generate reset password token");
+                    return BadRequest("Failed to generate request new email confirmation token");
 
-                // Удаляем временный код из Redis
-                await _redisService.DeleteAsync($"email-reset: {userIdClaim}");
+                await _redisService.DeleteAsync($"old-password-cofirmation-code:{userId}");
 
-                Response.Cookies.Append("classified-password-reset-token", resetEmailToken, new CookieOptions
+                Response.Cookies.Append("request-new-email-confirmation-token", resetEmailToken, new CookieOptions
                 {
                     HttpOnly = true,
                     Secure = false,
                     Expires = DateTimeOffset.UtcNow.AddMinutes(5)
                 });
-             
+
+                return Ok("Reset token issued");
+            }
+            catch (InvalidOperationException e)
+            {
+                throw new Exception(e.Message);
+            }
+        }
+
+        [HttpPost("SendNewEmailCofirmationCode")]
+        public async Task<IActionResult> sendCofirmationCodeToNewEmail([FromForm] EmailDto dto)
+        {
+            if (!Request.Cookies.TryGetValue("request-new-email-confirmation-token", out var resetPasswordToken) || string.IsNullOrEmpty(resetPasswordToken))
+                return Unauthorized("Refresh token is missing or invalid.");
+
+            var handler = new JwtSecurityTokenHandler();
+
+            var resetPasswordJwt = handler.ReadJwtToken(resetPasswordToken);
+
+            var userIdClaim = resetPasswordJwt.Claims.FirstOrDefault(c => c.Type == "userId")?.Value;
+            var tokenTypeClaim = resetPasswordJwt.Claims.FirstOrDefault(c => c.Type == "type")?.Value;
+
+            if (tokenTypeClaim != JwtTokenType.RequestNewEmailCofirmation.ToString())
+                return Forbid();
+
+            try
+            {
+                var newEmailCOfirmationCode = Guid.NewGuid().ToString().Substring(0, 11).Replace("-", "").ToUpper();
+
+                var redisData = new { Code = newEmailCOfirmationCode , Email = dto.email };
+
+                await _redisService.SetAsync(
+                    key: $"new-email-cofirmation-code:{userIdClaim}",
+                    value: System.Text.Json.JsonSerializer.Serialize(redisData),
+                    expiration: TimeSpan.FromMinutes(5)
+                );
+
+                await _emailService.SendEmail(dto.email, "New email confirmation code", newEmailCOfirmationCode);
+
+                return Ok("Reset code sent");
+            }
+            catch (InvalidOperationException e)
+            {
+                throw new Exception(e.Message);
+            }
+        }
+
+        [HttpPost("confirm-new-email")]
+        public async Task<IActionResult> confirmNewEmail([FromForm] EmailResetVerificationCodeDto dto)
+        {
+            var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
+
+            if (!Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized();
+
+            try
+            {
+                var redisValue = await _redisService.GetAsync($"new-email-cofirmation-code:{userId}");
+
+                if(string.IsNullOrEmpty(redisValue))
+                    return BadRequest("Verification code expired or not found");
+
+                var redisData = JsonConvert.DeserializeObject<dynamic>(redisValue);
+
+                string storedCode = redisData!.Code;
+                string storedEmail = redisData!.Email;
+
+                if (!string.Equals(storedCode, dto.verificationCode, StringComparison.OrdinalIgnoreCase))
+                    return BadRequest("Invalid verification code");
+
+                var resetEmailToken = await _authService.getEmailResetToken(userId, storedEmail);
+
+                if (string.IsNullOrEmpty(resetEmailToken))
+                    return StatusCode(500, "Failed to generate reset password token");
+
+                await _redisService.DeleteAsync($"new-email-cofirmation-code:{userId}");
+
+                Response.Cookies.Append("classified-email-reset-token", resetEmailToken, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = false,
+                    Expires = DateTimeOffset.UtcNow.AddMinutes(5)
+                });
+
                 return Ok("Reset token issued");
             }
             catch (InvalidOperationException e)
@@ -533,23 +617,31 @@ namespace UserService.API.Controllers
         }
 
         [HttpPost("complete-email-change-via-email")]
-        public async Task<IActionResult> CompleteEmailChangeViaEmailViaEmail([FromForm] ChangeUserEmailDto email)
+        public async Task<IActionResult> CompleteEmailChangeViaEmailViaEmail()
         {
-            if (!Request.Cookies.TryGetValue("classified-password-reset-token", out var resetPasswordToken) || string.IsNullOrEmpty(resetPasswordToken))
+            if (!Request.Cookies.TryGetValue("classified-email-reset-token", out var resetPasswordToken) || string.IsNullOrEmpty(resetPasswordToken))
                 return Unauthorized("Refresh token is missing or invalid.");
 
             var handler = new JwtSecurityTokenHandler();
 
             var resetPasswordJwt = handler.ReadJwtToken(resetPasswordToken);
-            var UserIdClaim = resetPasswordJwt.Claims.FirstOrDefault(c => c.Type == "userId")?.Value;
+
+            var userIdClaim = resetPasswordJwt.Claims.FirstOrDefault(c => c.Type == "userId")?.Value;
+            var newEmailClaim = resetPasswordJwt.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
             var tokenTypeClaim = resetPasswordJwt.Claims.FirstOrDefault(c => c.Type == "type")?.Value;
+           
+            if (!Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized();
+
+            if (string.IsNullOrEmpty(newEmailClaim)) 
+                return NotFound();
 
             if (tokenTypeClaim != JwtTokenType.EmailReset.ToString())
                 return Forbid();
 
             try
             {
-                await _userService.ChangeEmailAsync(Guid.Parse(UserIdClaim!), email.Email);
+                await _userService.ChangeEmailAsync(userId, newEmailClaim);
                 return Ok();
             }
             catch (Exception e)

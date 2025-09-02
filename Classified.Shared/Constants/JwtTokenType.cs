@@ -7,6 +7,8 @@
         Restore,
         Device,
         PasswordReset,
+        RequestNewEmailCofirmation,
+        ConfirmNewEmail,
         EmailReset
     }
 

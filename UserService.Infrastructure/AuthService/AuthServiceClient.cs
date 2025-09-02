@@ -22,9 +22,19 @@ namespace UserService.Infrastructure.AuthService
             return await response.Content.ReadAsStringAsync();
         }
 
-        public async Task<string?> getEmailResetToken(Guid userId)
+        public async Task<string?> getEmailResetToken(Guid userId, string newEmail)
         {
-            var response = await _http.GetAsync($"api/auth/get-email-reset-token?userId={userId}");
+            var response = await _http.GetAsync($"api/auth/get-email-reset-token?userId={userId}&newEmail={newEmail}");
+
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            return await response.Content.ReadAsStringAsync();
+        }
+
+        public async Task<string?> getRequestNewEmailCofirmationToken(Guid userId)
+        {
+            var response = await _http.GetAsync($"api/auth/get-request-new-email-cofirmation-token?userId={userId}");
 
             if (!response.IsSuccessStatusCode)
                 return null;

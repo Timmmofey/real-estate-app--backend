@@ -116,12 +116,34 @@ namespace AuthService.Infrastructure.Jwt
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        public string GenerateResetEmailResetToken(Guid userId)
+        public string GenerateResetEmailResetToken(Guid userId, string newEmail)
         {
             var claims = new[]
             {
                 new Claim("userId", userId.ToString()),
-                new Claim("type", JwtTokenType.EmailReset.ToString())
+                new Claim("type", JwtTokenType.EmailReset.ToString()),
+                new Claim("email", newEmail)
+            };
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var token = new JwtSecurityToken(
+                issuer: _config["Jwt:Issuer"],
+                audience: _config["Jwt:Audience"],
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(15),
+                signingCredentials: creds);
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        public string GenerateRequestNewEmailCofirmationToken(Guid userId)
+        {
+            var claims = new[]
+            {
+                new Claim("userId", userId.ToString()),
+                new Claim("type", JwtTokenType.RequestNewEmailCofirmation.ToString())
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
