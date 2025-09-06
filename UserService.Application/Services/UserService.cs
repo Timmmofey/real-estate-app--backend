@@ -172,7 +172,9 @@ namespace UserService.Application.Services
                 {
                     FirstName = profile.FirstName,
                     LastName = profile.LastName,
-                    isVerified = user.IsVerified,
+                    Email = user.Email,
+                    PhoneNumer = user.PhoneNumber,
+                    IsVerified = user.IsVerified,
                     MainPhotoUrl = profile?.MainPhotoUrl,
                     Country = profile?.Country,
                     Region = profile?.Region,
@@ -194,6 +196,9 @@ namespace UserService.Application.Services
                 var profileDto = new CompanyUserProfileDto
                 {
                    Name = profile.Name,
+                   Email = user.Email,
+                   PhoneNumer = user.PhoneNumber,
+                   IsVerified = user.IsVerified,
                    Country = profile.Country,
                    Region = profile.Region,
                    Settlement = profile.Settlement,

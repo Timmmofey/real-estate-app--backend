@@ -3,6 +3,9 @@
     public class CompanyUserProfileDto
     {
         public string Name { get; set; } = default!;
+        public string Email { get; set; } = default!;
+        public string PhoneNumer { get; set; } = default!;
+        public bool IsVerified { get; set; }
         public string Country { get; set; } = default!;
         public string Region { get; set; } = default!;
         public string Settlement { get; set; } = default!;
