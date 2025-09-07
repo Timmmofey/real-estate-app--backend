@@ -208,12 +208,17 @@ namespace AuthService.API.Controllers
         public async Task<ActionResult<ICollection<SessionDto>>> GetUsersSessionAsync()
         {
             var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
+            var sessionIdClaim = User.Claims.FirstOrDefault(r => r.Type == "sessionId")?.Value;
             if (!Guid.TryParse(userIdClaim, out var userId))
             {
                 return Unauthorized();
             }
+            if (!Guid.TryParse(sessionIdClaim, out var sessionId))
+            {
+                return Unauthorized();
+            }
 
-            var sessions = await _authService.GetUsersSessions(userId);
+            var sessions = await _authService.GetUsersSessions(userId, sessionId);
             return Ok(sessions);
         }
 

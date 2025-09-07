@@ -19,7 +19,7 @@ namespace AuthService.Infrastructure.Jwt
             {
                 new Claim("userId", userId.ToString()),
                 new Claim(ClaimTypes.Role, role.ToString()),
-                new Claim("sessionId", userId.ToString()),
+                new Claim("sessionId", sessionId.ToString()),
                 new Claim("type", JwtTokenType.Access.ToString())
             };
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));

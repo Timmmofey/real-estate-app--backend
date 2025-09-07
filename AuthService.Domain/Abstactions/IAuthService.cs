@@ -9,6 +9,6 @@ namespace AuthService.Domain.Abstactions
         Task LogoutAync(Guid deviceId);
         Task LogoutAllAsync(Guid userId);
         Task<bool> TerminateSession(Guid userId, Guid id);
-        Task<ICollection<SessionDto>> GetUsersSessions(Guid userId);
+        Task<ICollection<SessionDto>> GetUsersSessions(Guid userId, Guid sessionId);
     }
 }

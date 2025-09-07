@@ -13,9 +13,15 @@ namespace AuthService.Domain.Models
 
         public Guid DeviceId { get; } = default!;
         public string DeviceName { get; } = default!;
-        public string? IpAddress { get; } = default!;
+        public DeviceType? DeviceType { get; } = null;
+        public string? IpAddress { get; } = null;
+        public string? Country { get; } = null;
+        public string? Settlemnet { get; } = null;
 
-        private Session(Guid id, Guid userId, UserRole role, Guid token,  Guid deviceId, string deviceName, string? ipAddress, DateTime? createdAt, DateTime? expiresAt) 
+
+
+
+        private Session(Guid id, Guid userId, UserRole role, Guid token,  Guid deviceId, string deviceName, DeviceType? deviceType, string? ipAddress, string? country, string? settlement, DateTime? createdAt, DateTime? expiresAt) 
         {
             Id = id;
             UserId = userId;
@@ -25,7 +31,10 @@ namespace AuthService.Domain.Models
             ExpiresAt = expiresAt ?? DateTime.UtcNow.AddDays(15);
             DeviceId = deviceId;
             DeviceName = deviceName;
-            IpAddress = ipAddress ?? null;
+            IpAddress = ipAddress;
+            DeviceType = deviceType;
+            Country = country;
+            Settlemnet = settlement;
         }
 
         private static string? ValidateRefreshToken(Guid id, Guid userId, Guid token, Guid deviceId, string deviceName, string? ipAddress)
@@ -43,12 +52,12 @@ namespace AuthService.Domain.Models
             return null;
         }
 
-        public static (Session? SessionToken, string? Error) Create(Guid id, Guid userId, UserRole role, Guid token, Guid deviceId, string deviceName, string? ipAddress, DateTime? CreatedAt, DateTime? ExpiresAt)
+        public static (Session? SessionToken, string? Error) Create(Guid id, Guid userId, UserRole role, Guid token, Guid deviceId, string deviceName, DeviceType? deviceType, string? ipAddress, string? country, string? settlement, DateTime? CreatedAt, DateTime? ExpiresAt)
         {
             var validationError = ValidateRefreshToken(id, userId, token, deviceId, deviceName, ipAddress);
             if (validationError != null) return (null, validationError);
 
-            var refreshToken = new Session(id, userId, role, token, deviceId, deviceName, ipAddress, CreatedAt, ExpiresAt);
+            var refreshToken = new Session(id, userId, role, token, deviceId, deviceName, deviceType, ipAddress, country, settlement, CreatedAt, ExpiresAt);
 
             return (refreshToken, null);
         }

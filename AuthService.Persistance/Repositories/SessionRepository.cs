@@ -29,6 +29,9 @@ namespace AuthService.Persistance.Repositories
                 DeviceId = rt.DeviceId,
                 DeviceName = rt.DeviceName,
                 IpAddress = rt.IpAddress,
+                DeviceType = rt.DeviceType,
+                Country = rt.Country,
+                Settlemnet = rt.Settlemnet,
             };
 
             await _context.Sessions.AddAsync(sessionEntity);
@@ -47,8 +50,11 @@ namespace AuthService.Persistance.Repositories
                 existingEntity.CreatedAt = rt.CreatedAt;
                 existingEntity.DeviceName = rt.DeviceName;
                 existingEntity.IpAddress = rt.IpAddress;
+                existingEntity.DeviceType = rt.DeviceType;
                 existingEntity.Role = (UserRoleEntity)rt.Role;
                 existingEntity.UserId = rt.UserId;
+                existingEntity.Country = rt.Country;
+                existingEntity.Settlemnet = rt.Settlemnet;
             }
             else
             {
@@ -64,6 +70,9 @@ namespace AuthService.Persistance.Repositories
                     DeviceId = rt.DeviceId,
                     DeviceName = rt.DeviceName,
                     IpAddress = rt.IpAddress,
+                    DeviceType = rt.DeviceType,
+                    Country = rt.Country,
+                    Settlemnet = rt.Settlemnet,
                 };
 
                 await _context.Sessions.AddAsync(newEntity);
@@ -107,7 +116,7 @@ namespace AuthService.Persistance.Repositories
                 throw new Exception($"User Refresh Token has not been found");
             }
 
-            var (session, error) = Session.Create(refreshTokenEntity.Id, refreshTokenEntity.UserId, (UserRole)refreshTokenEntity.Role, refreshTokenEntity.Token, refreshTokenEntity.DeviceId, refreshTokenEntity.DeviceName, refreshTokenEntity.IpAddress, refreshTokenEntity.CreatedAt, refreshTokenEntity.ExpiresAt);
+            var (session, error) = Session.Create(refreshTokenEntity.Id, refreshTokenEntity.UserId, (UserRole)refreshTokenEntity.Role, refreshTokenEntity.Token, refreshTokenEntity.DeviceId, refreshTokenEntity.DeviceName, refreshTokenEntity.DeviceType, refreshTokenEntity.IpAddress, refreshTokenEntity.Country, refreshTokenEntity.Settlemnet, refreshTokenEntity.CreatedAt, refreshTokenEntity.ExpiresAt);
 
             if (session == null)
             {
@@ -130,7 +139,10 @@ namespace AuthService.Persistance.Repositories
                        entity.Token,
                        entity.DeviceId,
                        entity.DeviceName,
+                       entity.DeviceType,
                        entity.IpAddress,
+                       entity.Country,
+                       entity.Settlemnet,
                        entity.CreatedAt,
                        entity.ExpiresAt
                 );

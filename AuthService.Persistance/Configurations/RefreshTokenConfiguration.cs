@@ -9,7 +9,11 @@ namespace AuthService.Persistance.Configurations
         public void Configure(EntityTypeBuilder<SessionEntity> builder)
         {
             builder.HasKey(rt => rt.Id);
-                        
+
+            builder.Property(s => s.DeviceType)
+                   .HasConversion<string>();  
         }
+
+
     }
 }

@@ -19,6 +19,9 @@ namespace UserService.Persistance.PostgreSQL.Configurations
                 .WithOne(c => c.User)
                 .HasForeignKey<CompanyProfileEntity>(p => p.UserId);
             ;
+
+            builder.Property(u => u.Role)
+                  .HasConversion<string>();
         }
     }
 

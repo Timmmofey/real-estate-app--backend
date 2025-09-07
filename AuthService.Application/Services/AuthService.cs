@@ -1,6 +1,8 @@
 ﻿using AuthService.Domain.Abstactions;
 using AuthService.Domain.DTOs;
 using AuthService.Domain.Models;
+using Classified.Shared.Constants;
+using DeviceDetectorNET;
 using Microsoft.AspNetCore.Http;
 using UAParser;
 
@@ -39,10 +41,7 @@ namespace AuthService.Application.Services
             var refreshToken = Guid.NewGuid();
             var deviceToken = _jwtProvider.GenerateDeviceToken(deviceId);
 
-            var uaString = _http.HttpContext!.Request.Headers["User-Agent"].ToString();
-            var client = Parser.GetDefault().Parse(uaString);
-            var deviceName = $"{client.UA.Family} {client.UA.Major} on {client.OS.Family} {client.OS.Major}";
-            var ipAdress = _http.HttpContext.Connection.RemoteIpAddress?.ToString() ?? null;
+            var (deviceName, deviceType, ipAddress, country, city) = await GetDeviceInfo();
 
             var (refreshTokenObj, error) = Session.Create(
                 sessionId,
@@ -51,7 +50,10 @@ namespace AuthService.Application.Services
                 refreshToken,
                 deviceId,
                 deviceName,
-                ipAdress,
+                deviceType,
+                ipAddress,
+                country,
+                city,
                 null,
                 null
             );
@@ -82,10 +84,8 @@ namespace AuthService.Application.Services
             var newrefreshToken = Guid.NewGuid();
             var deviceToken = _jwtProvider.GenerateDeviceToken(session.DeviceId);
 
-            var uaString = _http.HttpContext!.Request.Headers["User-Agent"].ToString();
-            var client = Parser.GetDefault().Parse(uaString);
-            var deviceName = $"{client.UA.Family} {client.UA.Major} on {client.OS.Family} {client.OS.Major}";
-            var ipAdress = _http.HttpContext.Connection.RemoteIpAddress?.ToString() ?? null;
+            var (deviceName, deviceType, ipAddress, country, city) = await GetDeviceInfo();
+
 
             var (refreshTokenObj, error) = Session.Create(
                 session.Id,
@@ -94,7 +94,10 @@ namespace AuthService.Application.Services
                 newrefreshToken,
                 deviceId,
                 deviceName,
-                ipAdress,
+                deviceType,
+                ipAddress,
+                country,
+                city,
                 null,
                 null
             );
@@ -128,7 +131,7 @@ namespace AuthService.Application.Services
             return await _refreshTokenRepository.DeleteRefreshTokenByUserIdAndIdAsync(userId, id);
         }
 
-        public async Task<ICollection<SessionDto>> GetUsersSessions(Guid userId)
+        public async Task<ICollection<SessionDto>> GetUsersSessions(Guid userId, Guid sessionId)
         {
             var refreshTokens = await _refreshTokenRepository.GetUsersSessionsAsync(userId);
             var usersSessions = new List<SessionDto>();
@@ -138,8 +141,13 @@ namespace AuthService.Application.Services
                 var session = new SessionDto
                 {
                     DeviceName = refreshToken.DeviceName,
+                    DeviceType = refreshToken.DeviceType,
                     IpAddress = refreshToken.IpAddress,
-                    SessionId = refreshToken.Id
+                    SessionId = refreshToken.Id,
+                    Country = refreshToken.Country,
+                    Settlement = refreshToken.Settlemnet,
+                    IsCurrentSession = sessionId == refreshToken.Id,
+                    LastActivity = refreshToken.CreatedAt
                 };
 
                 if (session != null)
@@ -150,5 +158,68 @@ namespace AuthService.Application.Services
 
             return usersSessions;
         }
+
+        ///////////////////////////////////
+        ///
+        //////////////////////////////////
+
+        private async Task<(string DeviceName, DeviceType? DeviceType, string? IpAddress, string? Country, string? City)> GetDeviceInfo()
+        {
+            var context = _http.HttpContext!;
+            var uaString = context.Request.Headers["User-Agent"].ToString();
+            var client = Parser.GetDefault().Parse(uaString);
+
+            var deviceName = $"{client.UA.Family} {client.UA.Major} on {client.OS.Family} {client.OS.Major}";
+
+            var ipAddress = context.Connection.RemoteIpAddress?.ToString();
+
+            var dd = new DeviceDetector(uaString);
+            dd.Parse();
+
+            DeviceType? deviceType = null;
+
+            if (dd.IsBot())
+                deviceType = DeviceType.Bot;
+            else if (dd.IsMobile())
+                deviceType = DeviceType.Mobile;
+            else if (dd.IsTablet())
+                deviceType = DeviceType.Tablet;
+            else if (dd.IsDesktop())
+                deviceType = DeviceType.Desktop;
+            else if (dd.IsTv())
+                deviceType = DeviceType.SmartTv;
+
+
+            string? country = null;
+            string? city = null;
+
+            
+            if (!string.IsNullOrEmpty(ipAddress))
+            {
+
+                if (ipAddress == "127.0.0.1" || ipAddress == "::1")
+                {
+                    ipAddress = "104.196.181.192"; // пусть вместо локал хоста будет, хоть увидим как апи определяет
+                }
+
+                try
+                {
+                    using var http = new HttpClient();
+                    var response = await http.GetStringAsync($"http://ip-api.com/json/{ipAddress}");
+                    var data = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(response);
+                    if (data.TryGetProperty("country", out var countryProp))
+                        country = countryProp.GetString();
+                    if (data.TryGetProperty("city", out var cityProp))
+                        city = cityProp.GetString();
+                }
+                catch
+                {
+                }
+            }
+
+            return (deviceName, deviceType, ipAddress, country, city);
+        }
+
+
     }
 }

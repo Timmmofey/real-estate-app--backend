@@ -1,4 +1,5 @@
-﻿using Classified.Shared.Entities;
+﻿using Classified.Shared.Constants;
+using Classified.Shared.Entities;
 
 namespace AuthService.Persistance.Entities
 {
@@ -13,6 +14,9 @@ namespace AuthService.Persistance.Entities
 
         public Guid DeviceId { get; set; } = default!;
         public string DeviceName { get; set; } = default!;
-        public string? IpAddress { get; set; } = default!;
+        public DeviceType? DeviceType { get; set; } = default!;
+        public string? IpAddress { get; set; } = null;
+        public string? Country { get; set; } = null;
+        public string? Settlemnet { get; set; } = null;
     }
 }
