@@ -13,6 +13,7 @@ using Newtonsoft.Json;
 using Classified.Shared.Infrastructure.EmailService;
 using Microsoft.AspNetCore.Cors;
 using Classified.Shared.Infrastructure.RedisService;
+using Classified.Shared.Functions;
 
 namespace UserService.API.Controllers
 {
@@ -408,7 +409,7 @@ namespace UserService.API.Controllers
                 Response.Cookies.Append("classified-password-reset-token", resetPasswordToken, new CookieOptions
                 {
                     HttpOnly = true,
-                    Secure = false, // Поставьте true, если используется HTTPS
+                    Secure = false, // true, если используется HTTPS
                     Expires = DateTimeOffset.UtcNow.AddMinutes(5)
                 });
 
@@ -490,7 +491,7 @@ namespace UserService.API.Controllers
         }
 
         [HttpPost("confirm-old-email")]
-        public async Task<IActionResult> confirmOldEmail([FromForm] EmailResetVerificationCodeDto dto)
+        public async Task<IActionResult> confirmOldEmail([FromBody] EmailResetVerificationCodeDto dto)
         {
             var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
 
@@ -518,12 +519,7 @@ namespace UserService.API.Controllers
 
                 await _redisService.DeleteAsync($"old-password-cofirmation-code:{userId}");
 
-                Response.Cookies.Append("request-new-email-confirmation-token", resetEmailToken, new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = false,
-                    Expires = DateTimeOffset.UtcNow.AddMinutes(5)
-                });
+                CookieHepler.SetCookie(Response, "request-new-email-confirmation-token", resetEmailToken, minutes: 5);
 
                 return Ok("Reset token issued");
             }
@@ -533,8 +529,8 @@ namespace UserService.API.Controllers
             }
         }
 
-        [HttpPost("SendNewEmailCofirmationCode")]
-        public async Task<IActionResult> sendCofirmationCodeToNewEmail([FromForm] EmailDto dto)
+        [HttpPost("send-new-email-cofirmation-code")]
+        public async Task<IActionResult> sendCofirmationCodeToNewEmail([FromBody] EmailDto dto)
         {
             if (!Request.Cookies.TryGetValue("request-new-email-confirmation-token", out var resetPasswordToken) || string.IsNullOrEmpty(resetPasswordToken))
                 return Unauthorized("Refresh token is missing or invalid.");
@@ -572,7 +568,7 @@ namespace UserService.API.Controllers
         }
 
         [HttpPost("confirm-new-email")]
-        public async Task<IActionResult> confirmNewEmail([FromForm] EmailResetVerificationCodeDto dto)
+        public async Task<IActionResult> confirmNewEmail([FromBody] EmailResetVerificationCodeDto dto)
         {
             var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
 
@@ -601,12 +597,7 @@ namespace UserService.API.Controllers
 
                 await _redisService.DeleteAsync($"new-email-cofirmation-code:{userId}");
 
-                Response.Cookies.Append("classified-email-reset-token", resetEmailToken, new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = false,
-                    Expires = DateTimeOffset.UtcNow.AddMinutes(5)
-                });
+                CookieHepler.SetCookie(Response, "classified-email-reset-token", resetEmailToken, minutes: 5);
 
                 return Ok("Reset token issued");
             }

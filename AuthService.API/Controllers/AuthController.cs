@@ -1,6 +1,7 @@
 ﻿using AuthService.Domain.Abstactions;
 using AuthService.Domain.DTOs;
 using Classified.Shared.Constants;
+using Classified.Shared.Functions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -37,7 +38,7 @@ namespace AuthService.API.Controllers
                 {
                     var deviceJwt = _jwtProvider.GenerateDeviceToken(deviceId);
 
-                    SetCookie("classified-device-id-token", deviceJwt, days: 150);
+                    CookieHepler.SetCookie(Response, "classified-device-id-token", deviceJwt, days: 150);
                 }
                 else
                 {
@@ -51,7 +52,7 @@ namespace AuthService.API.Controllers
                     }
                     var deviceJwt = _jwtProvider.GenerateDeviceToken(deviceId);
 
-                    SetCookie("classified-device-id-token", deviceJwt, days: 150);
+                    CookieHepler.SetCookie(Response, "classified-device-id-token", deviceJwt, days: 150);
                 }
 
 
@@ -59,13 +60,13 @@ namespace AuthService.API.Controllers
 
                 if (restoreToken != null)
                 {
-                    SetCookie("classified-restore-token", restoreToken, minutes: 10);
+                    CookieHepler.SetCookie(Response, "classified-restore-token", restoreToken, minutes: 10);
 
                     return Ok(restoreToken);
                 }
 
-                SetCookie("classified-auth-token", tokens!.AccessToken, minutes: 10);
-                SetCookie("classified-refresh-token", tokens.RefreshToken, days: 150);
+                CookieHepler.SetCookie(Response, "classified-auth-token", tokens!.AccessToken, minutes: 10);
+                CookieHepler.SetCookie(Response, "classified-refresh-token", tokens.RefreshToken, days: 150);
 
                 return Ok(tokens);
             }
@@ -114,9 +115,9 @@ namespace AuthService.API.Controllers
             // 3. Получение новых токенов
             var tokens = await _authService.RefreshAsync(refreshToken, deviceId);
 
-            SetCookie("classified-auth-token", tokens.AccessToken, minutes: 10);
-            SetCookie("classified-refresh-token", tokens.RefreshToken, days: 150);
-            SetCookie("classified-device-id-token", tokens.DeviceToken, days: 150);
+            CookieHepler.SetCookie(Response, "classified-auth-token", tokens.AccessToken, minutes: 10);
+            CookieHepler.SetCookie(Response, "classified-refresh-token", tokens.RefreshToken, days: 150);
+            CookieHepler.SetCookie(Response, "classified-device-id-token", tokens.DeviceToken, days: 150);
 
             return Ok(tokens);
         }
@@ -133,29 +134,7 @@ namespace AuthService.API.Controllers
 
             await _authService.LogoutAync(deviceId);
 
-            Response.Cookies.Append("classified-auth-token", "", new CookieOptions
-            {
-                Expires = DateTimeOffset.UtcNow.AddDays(-1),
-                HttpOnly = true,
-                Secure = true, // Только если у тебя HTTPS
-                SameSite = SameSiteMode.None
-            });
-
-            Response.Cookies.Append("classified-refresh-token", "", new CookieOptions
-            {
-                Expires = DateTimeOffset.UtcNow.AddDays(-1),
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.None
-            });
-
-            Response.Cookies.Append("classified-device-id-token", "", new CookieOptions
-            {
-                Expires = DateTimeOffset.UtcNow.AddDays(-1),
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.None
-            });
+            RemoveRefreshAuthDeviceTokens();
 
             return NoContent();
         }
@@ -168,13 +147,15 @@ namespace AuthService.API.Controllers
             var userId = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
             var tokenTypeClaim = User.Claims.FirstOrDefault(c => c.Type == "type")?.Value;
 
-            if (tokenTypeClaim != JwtTokenType.Access.ToString())
-                return Forbid();
+            //if (tokenTypeClaim != JwtTokenType.Access.ToString())
+            //    return Forbid();
 
             if (userId == null)
             {
                 return Unauthorized();
             }
+
+            RemoveRefreshAuthDeviceTokens();
 
             await _authService.LogoutAllAsync(Guid.Parse(userId));
             return NoContent();
@@ -248,22 +229,6 @@ namespace AuthService.API.Controllers
         ///
         /// </summary>
 
-        private void SetCookie(string name, string value, int? days = null, int? minutes = null)
-        {
-            var expires = DateTimeOffset.UtcNow;
-            if (days.HasValue)
-                expires = expires.AddDays(days.Value);
-            else if (minutes.HasValue)
-                expires = expires.AddMinutes(minutes.Value);
-
-            Response.Cookies.Append(name, value, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = false,
-                Expires = expires
-            });
-        }
-
         private IActionResult? TryGetDeviceIdFromCookie(out Guid deviceId)
         {
             deviceId = Guid.Empty;
@@ -289,6 +254,13 @@ namespace AuthService.API.Controllers
             {
                 return Unauthorized("Device token is malformed.");
             }
+        }
+
+        private void RemoveRefreshAuthDeviceTokens() 
+        {
+            CookieHepler.DeleteCookie(Response, "classified-auth-token" );
+            CookieHepler.DeleteCookie(Response, "classified-refresh-token");
+            CookieHepler.DeleteCookie(Response, "classified-device-id-token");
         }
 
     }
