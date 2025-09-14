@@ -62,13 +62,13 @@ namespace AuthService.API.Controllers
                 {
                     CookieHepler.SetCookie(Response, "classified-restore-token", restoreToken, minutes: 10);
 
-                    return Ok(restoreToken);
+                    return Ok(new { restore = true });
                 }
 
                 CookieHepler.SetCookie(Response, "classified-auth-token", tokens!.AccessToken, minutes: 10);
                 CookieHepler.SetCookie(Response, "classified-refresh-token", tokens.RefreshToken, days: 150);
 
-                return Ok(tokens);
+                return Ok();
             }
             catch (Exception ex)
             {
@@ -134,7 +134,7 @@ namespace AuthService.API.Controllers
 
             await _authService.LogoutAync(deviceId);
 
-            RemoveRefreshAuthDeviceTokens();
+            CookieHepler.RemoveRefreshAuthDeviceTokens(Response);
 
             return NoContent();
         }
@@ -155,7 +155,7 @@ namespace AuthService.API.Controllers
                 return Unauthorized();
             }
 
-            RemoveRefreshAuthDeviceTokens();
+            CookieHepler.RemoveRefreshAuthDeviceTokens(Response);
 
             await _authService.LogoutAllAsync(Guid.Parse(userId));
             return NoContent();
@@ -254,13 +254,6 @@ namespace AuthService.API.Controllers
             {
                 return Unauthorized("Device token is malformed.");
             }
-        }
-
-        private void RemoveRefreshAuthDeviceTokens() 
-        {
-            CookieHepler.DeleteCookie(Response, "classified-auth-token" );
-            CookieHepler.DeleteCookie(Response, "classified-refresh-token");
-            CookieHepler.DeleteCookie(Response, "classified-device-id-token");
         }
 
     }

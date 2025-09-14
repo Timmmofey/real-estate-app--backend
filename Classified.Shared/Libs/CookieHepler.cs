@@ -30,5 +30,12 @@ namespace Classified.Shared.Functions
                 Expires = DateTimeOffset.UtcNow.AddDays(-1)
             });
         }
+
+        public static void RemoveRefreshAuthDeviceTokens(HttpResponse response)
+        {
+            CookieHepler.DeleteCookie(response, "classified-auth-token");
+            CookieHepler.DeleteCookie(response, "classified-refresh-token");
+            CookieHepler.DeleteCookie(response, "classified-device-id-token");
+        }
     }
 }

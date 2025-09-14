@@ -245,6 +245,8 @@ namespace UserService.API.Controllers
                     Key = Guid.NewGuid().ToString(),
                     Value = userIdClaim
                 });
+
+                CookieHepler.RemoveRefreshAuthDeviceTokens(Response);
             }
             catch (InvalidOperationException e) { 
                 throw new Exception(e.Message);
@@ -278,19 +280,19 @@ namespace UserService.API.Controllers
         public async Task<IActionResult> PermanantlyDeleteAccount()
         {
          
-                if (!Request.Cookies.TryGetValue("classified-restore-token", out var tokenHeader))
-                {
-                    return Unauthorized("Missing device token.");
-                }
+            if (!Request.Cookies.TryGetValue("classified-restore-token", out var tokenHeader))
+            {
+                return Unauthorized("Missing device token.");
+            }
 
-                var handler = new JwtSecurityTokenHandler();
-                var jwt = handler.ReadJwtToken(tokenHeader.ToString());
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(tokenHeader.ToString());
 
-                var idClaim = jwt.Claims.FirstOrDefault(c => c.Type == "Id")?.Value;
-                if (!Guid.TryParse(idClaim, out var userId))
-                {
-                    return Unauthorized("Invalid or missing Id claim in token.");
-                }
+            var idClaim = jwt.Claims.FirstOrDefault(c => c.Type == "Id")?.Value;
+            if (!Guid.TryParse(idClaim, out var userId))
+            {
+                return Unauthorized("Invalid or missing Id claim in token.");
+            }
 
             try
             {
@@ -307,18 +309,18 @@ namespace UserService.API.Controllers
         public async Task<IActionResult> GetPersonalInfo()
         {
             
-                var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
-                var roleClaim = User.Claims.FirstOrDefault(r => r.Type == ClaimTypes.Role)?.Value;
+            var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
+            var roleClaim = User.Claims.FirstOrDefault(r => r.Type == ClaimTypes.Role)?.Value;
 
-                if (!Guid.TryParse(userIdClaim, out var userId))
-                {
-                    return Unauthorized();
-                }
+            if (!Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized();
+            }
 
-                if (!Enum.TryParse<UserRole>(roleClaim, out var userRole))
-                {
-                    return Unauthorized();
-                }
+            if (!Enum.TryParse<UserRole>(roleClaim, out var userRole))
+            {
+                return Unauthorized();
+            }
 
             try
             {
@@ -340,8 +342,9 @@ namespace UserService.API.Controllers
         public async Task<IActionResult> StartPasswordResetViaEmail([FromForm] string email)
         {
             
-                if (string.IsNullOrWhiteSpace(email))
-                    return BadRequest("Email is required");
+            if (string.IsNullOrWhiteSpace(email))
+                return BadRequest("Email is required");
+
             try
             {
                 var userId = await _userService.GetUserIdByEmailAsync(email);
@@ -379,8 +382,8 @@ namespace UserService.API.Controllers
         public async Task<IActionResult> GetPasswordResetTokenViaEmail([FromBody] GetPasswordResetTokenDto dto)
         {
             
-                if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.VerificationCode))
-                    return BadRequest("Email and verification code are required");
+            if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.VerificationCode))
+                return BadRequest("Email and verification code are required");
            
             try
             {
@@ -390,7 +393,7 @@ namespace UserService.API.Controllers
                 if (string.IsNullOrEmpty(redisValue))
                     return BadRequest("Verification code expired or not found");
 
-                var redisData = JsonConvert.DeserializeObject<dynamic>(redisValue); ;
+                var redisData = JsonConvert.DeserializeObject<dynamic>(redisValue);
 
                 string storedCode = redisData!.Code;
                 Guid userId = redisData.UserId;
@@ -406,12 +409,7 @@ namespace UserService.API.Controllers
                 // Удаляем временный код из Redis
                 await _redisService.DeleteAsync($"pwd-reset:{dto.Email}");
 
-                Response.Cookies.Append("classified-password-reset-token", resetPasswordToken, new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = false, // true, если используется HTTPS
-                    Expires = DateTimeOffset.UtcNow.AddMinutes(5)
-                });
+                CookieHepler.SetCookie(Response, "classified-password-reset-token", resetPasswordToken, minutes: 5);
 
                 return Ok("Reset token issued");
             }
