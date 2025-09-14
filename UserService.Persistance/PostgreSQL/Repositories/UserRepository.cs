@@ -350,12 +350,8 @@ namespace UserService.Persistance.PostgreSQL.Repositories
         public async Task<Guid?> GetUserIdByEmailAsync(string email)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email && u.IsSoftDeleted == false);
-            var userId = user?.Id;
 
-            if (user == null)
-                throw new Exception("User with such email doesnt exist");
-
-            return userId;
+            return user?.Id;
         }
 
         public async Task<string?> GetUserEmailById(Guid id)

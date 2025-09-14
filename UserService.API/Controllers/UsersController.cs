@@ -553,6 +553,10 @@ namespace UserService.API.Controllers
 
             try
             {
+                var isEmailTaken = await  _userService.GetUserIdByEmailAsync(dto.email);
+
+                if (isEmailTaken != null) return BadRequest("this email is taken");
+
                 var newEmailCOfirmationCode = Guid.NewGuid().ToString().Substring(0, 11).Replace("-", "").ToUpper();
 
                 var redisData = new { Code = newEmailCOfirmationCode , Email = dto.email };
