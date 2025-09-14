@@ -8,7 +8,7 @@
         Device,
         PasswordReset,
         RequestNewEmailCofirmation,
-        ConfirmNewEmail,
+        //ConfirmNewEmail,
         EmailReset
     }
 

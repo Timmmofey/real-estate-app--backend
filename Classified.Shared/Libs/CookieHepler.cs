@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Classified.Shared.Constants;
+using Microsoft.AspNetCore.Http;
 
 namespace Classified.Shared.Functions
 {
@@ -33,9 +34,9 @@ namespace Classified.Shared.Functions
 
         public static void RemoveRefreshAuthDeviceTokens(HttpResponse response)
         {
-            CookieHepler.DeleteCookie(response, "classified-auth-token");
-            CookieHepler.DeleteCookie(response, "classified-refresh-token");
-            CookieHepler.DeleteCookie(response, "classified-device-id-token");
+            CookieHepler.DeleteCookie(response, JwtTokenType.Access.ToString());
+            CookieHepler.DeleteCookie(response, JwtTokenType.Refresh.ToString());
+            CookieHepler.DeleteCookie(response, JwtTokenType.Device.ToString());
         }
     }
 }

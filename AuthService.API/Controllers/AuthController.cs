@@ -1,6 +1,7 @@
 ﻿using AuthService.Domain.Abstactions;
 using AuthService.Domain.DTOs;
 using Classified.Shared.Constants;
+using Classified.Shared.Filters;
 using Classified.Shared.Functions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
@@ -33,12 +34,11 @@ namespace AuthService.API.Controllers
                 var handler = new JwtSecurityTokenHandler();
 
          
-                if (!Request.Cookies.TryGetValue("classified-device-id-token", out var deviceToken) ||
-                string.IsNullOrEmpty(deviceToken))
+                if (!Request.Cookies.TryGetValue(CookieNames.Device, out var deviceToken) || string.IsNullOrEmpty(deviceToken))
                 {
                     var deviceJwt = _jwtProvider.GenerateDeviceToken(deviceId);
 
-                    CookieHepler.SetCookie(Response, "classified-device-id-token", deviceJwt, days: 150);
+                    CookieHepler.SetCookie(Response, CookieNames.Device, deviceJwt, days: 150);
                 }
                 else
                 {
@@ -52,7 +52,7 @@ namespace AuthService.API.Controllers
                     }
                     var deviceJwt = _jwtProvider.GenerateDeviceToken(deviceId);
 
-                    CookieHepler.SetCookie(Response, "classified-device-id-token", deviceJwt, days: 150);
+                    CookieHepler.SetCookie(Response, CookieNames.Device, deviceJwt, days: 150);
                 }
 
 
@@ -60,13 +60,13 @@ namespace AuthService.API.Controllers
 
                 if (restoreToken != null)
                 {
-                    CookieHepler.SetCookie(Response, "classified-restore-token", restoreToken, minutes: 10);
+                    CookieHepler.SetCookie(Response, CookieNames.Restore, restoreToken, minutes: 10);
 
                     return Ok(new { restore = true });
                 }
 
-                CookieHepler.SetCookie(Response, "classified-auth-token", tokens!.AccessToken, minutes: 10);
-                CookieHepler.SetCookie(Response, "classified-refresh-token", tokens.RefreshToken, days: 150);
+                CookieHepler.SetCookie(Response, CookieNames.Auth, tokens!.AccessToken, minutes: 10);
+                CookieHepler.SetCookie(Response, CookieNames.Refresh, tokens.RefreshToken, days: 150);
 
                 return Ok();
             }
@@ -76,7 +76,7 @@ namespace AuthService.API.Controllers
             }
         }
 
-        [Authorize]
+        [AuthorizeToken(JwtTokenType.Refresh)]
         [HttpPost("Refresh")]
         public async Task<IActionResult> Refresh()
         {
@@ -88,7 +88,7 @@ namespace AuthService.API.Controllers
                 return errorResult;
 
             // 2. Чтение refresh-токена
-            if (!Request.Cookies.TryGetValue("classified-refresh-token", out var refreshTokenString) ||
+            if (!Request.Cookies.TryGetValue(CookieNames.Refresh, out var refreshTokenString) ||
                 string.IsNullOrEmpty(refreshTokenString))
             {
                 return Unauthorized("Refresh token is missing or invalid.");
@@ -96,33 +96,31 @@ namespace AuthService.API.Controllers
 
             Guid refreshToken;
             var handler = new JwtSecurityTokenHandler();
+
+            var refreshJwt = handler.ReadJwtToken(refreshTokenString);
+            var refreshTokenClaim = refreshJwt.Claims.FirstOrDefault(c => c.Type == "token")?.Value;
+            
+            if (!Guid.TryParse(refreshTokenClaim, out refreshToken))
+                return Unauthorized("Refresh token claim is invalid.");
+
             try
             {
-                var refreshJwt = handler.ReadJwtToken(refreshTokenString);
-                var refreshTokenClaim = refreshJwt.Claims.FirstOrDefault(c => c.Type == "token")?.Value;
-                var tokenTypeClaim = refreshJwt.Claims.FirstOrDefault(c => c.Type == "type")?.Value;
+                // 3. Получение новых токенов
+                var tokens = await _authService.RefreshAsync(refreshToken, deviceId);
 
-                if (tokenTypeClaim != JwtTokenType.Refresh.ToString())
-                    return Forbid();
-                if (!Guid.TryParse(refreshTokenClaim, out refreshToken))
-                    return Unauthorized("Refresh token claim is invalid.");
+                CookieHepler.SetCookie(Response, CookieNames.Auth, tokens.AccessToken, minutes: 10);
+                CookieHepler.SetCookie(Response, CookieNames.Refresh, tokens.RefreshToken, days: 150);
+                CookieHepler.SetCookie(Response, CookieNames.Device, tokens.DeviceToken, days: 150);
+
+                return Ok(tokens);
             }
             catch
             {
                 return Unauthorized("Refresh token is malformed.");
             }
-
-            // 3. Получение новых токенов
-            var tokens = await _authService.RefreshAsync(refreshToken, deviceId);
-
-            CookieHepler.SetCookie(Response, "classified-auth-token", tokens.AccessToken, minutes: 10);
-            CookieHepler.SetCookie(Response, "classified-refresh-token", tokens.RefreshToken, days: 150);
-            CookieHepler.SetCookie(Response, "classified-device-id-token", tokens.DeviceToken, days: 150);
-
-            return Ok(tokens);
         }
 
-        [Authorize]
+        [AuthorizeToken(JwtTokenType.Access)]
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
@@ -140,15 +138,11 @@ namespace AuthService.API.Controllers
         }
 
 
-        [Authorize]
+        [AuthorizeToken(JwtTokenType.Access)]
         [HttpPost("logout-all")]
         public async Task<IActionResult> LogoutAll()
         {
             var userId = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
-            var tokenTypeClaim = User.Claims.FirstOrDefault(c => c.Type == "type")?.Value;
-
-            //if (tokenTypeClaim != JwtTokenType.Access.ToString())
-            //    return Forbid();
 
             if (userId == null)
             {
@@ -161,7 +155,7 @@ namespace AuthService.API.Controllers
             return NoContent();
         }
 
-        [Authorize]
+        [AuthorizeToken(JwtTokenType.Access)]
         [HttpPost("terminate-session")]
         public async Task<IActionResult> TerminateSessionAsync(Guid sessionId)
         {
@@ -172,10 +166,6 @@ namespace AuthService.API.Controllers
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
                 return Unauthorized();
 
-            var tokenTypeClaim = User.Claims.FirstOrDefault(c => c.Type == "type")?.Value;
-            if (!string.Equals(tokenTypeClaim, JwtTokenType.Access.ToString(), StringComparison.OrdinalIgnoreCase))
-                return Forbid();
-
             var success = await _authService.TerminateSession(userId, sessionId);
 
             if (!success)
@@ -184,7 +174,7 @@ namespace AuthService.API.Controllers
             return NoContent();
         }
 
-        [Authorize]
+        [AuthorizeToken(JwtTokenType.Access)]
         [HttpGet("get-users-sessions")]
         public async Task<ActionResult<ICollection<SessionDto>>> GetUsersSessionAsync()
         {
@@ -233,7 +223,7 @@ namespace AuthService.API.Controllers
         {
             deviceId = Guid.Empty;
 
-            if (!Request.Cookies.TryGetValue("classified-device-id-token", out var deviceToken) ||
+            if (!Request.Cookies.TryGetValue(CookieNames.Device, out var deviceToken) ||
                 string.IsNullOrEmpty(deviceToken))
             {
                 return Unauthorized("Device token is missing or invalid.");

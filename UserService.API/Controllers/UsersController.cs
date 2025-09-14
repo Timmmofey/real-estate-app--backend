@@ -14,6 +14,7 @@ using Classified.Shared.Infrastructure.EmailService;
 using Microsoft.AspNetCore.Cors;
 using Classified.Shared.Infrastructure.RedisService;
 using Classified.Shared.Functions;
+using Classified.Shared.Filters;
 
 namespace UserService.API.Controllers
 {
@@ -117,6 +118,7 @@ namespace UserService.API.Controllers
 
         }
 
+        [AuthorizeToken(JwtTokenType.Access)]
         [Authorize(Roles = "Person")]
         [HttpPatch("edit-person-profile-main-info")]
         public async Task<IActionResult> PatchPersonProfile([FromForm] EditPersonUserRequest updatedProfile)
@@ -172,7 +174,7 @@ namespace UserService.API.Controllers
             }
         }
 
-
+        [AuthorizeToken(JwtTokenType.Access)]
         [Authorize(Roles = "Company")]
         [HttpPatch("edit-company-profile-main-info")]
         public async Task<IActionResult> PatchCompanyProfile([FromForm] EditCompanyUserRequest updatedProfile)
@@ -227,6 +229,7 @@ namespace UserService.API.Controllers
             }
         }
 
+        [AuthorizeToken(JwtTokenType.Access)]
         [Authorize(Roles = "Person, Company")]
         [HttpDelete("delete-account")]
         public async Task<IActionResult> DeleteAccount()
@@ -255,10 +258,11 @@ namespace UserService.API.Controllers
             return NoContent();
         }
 
+        [AuthorizeToken(JwtTokenType.Restore)]
         [HttpPost("restore-deleted-account")]
         public async Task<IActionResult> RestoreDeletedAccount()
         {
-            if (!Request.Cookies.TryGetValue("classified-restore-token", out var tokenHeader))
+            if (!Request.Cookies.TryGetValue(CookieNames.Restore, out var tokenHeader))
             {
                 return Unauthorized("Missing device token.");
             }
@@ -267,15 +271,23 @@ namespace UserService.API.Controllers
             var jwt = handler.ReadJwtToken(tokenHeader.ToString());
 
             var idClaim = jwt.Claims.FirstOrDefault(c => c.Type == "Id")?.Value;
+
             if (!Guid.TryParse(idClaim, out var userId))
             {
                 return Unauthorized("Invalid or missing Id claim in token.");
-            } 
-
-            await _userService.RestoreDeletedAccount(userId);
+            }
+            try
+            {
+                await _userService.RestoreDeletedAccount(userId);
+                CookieHepler.DeleteCookie(Response, CookieNames.Restore);
+            }
+            catch (InvalidOperationException e) { 
+                throw new Exception(e.Message);
+            }
             return NoContent();
         }
 
+        [AuthorizeToken(JwtTokenType.Restore)]
         [HttpDelete("permanantly-delete-account")]
         public async Task<IActionResult> PermanantlyDeleteAccount()
         {
@@ -289,6 +301,7 @@ namespace UserService.API.Controllers
             var jwt = handler.ReadJwtToken(tokenHeader.ToString());
 
             var idClaim = jwt.Claims.FirstOrDefault(c => c.Type == "Id")?.Value;
+
             if (!Guid.TryParse(idClaim, out var userId))
             {
                 return Unauthorized("Invalid or missing Id claim in token.");
@@ -297,6 +310,7 @@ namespace UserService.API.Controllers
             try
             {
                 await _userService.PermanantlyDeleteAccount(userId);
+                CookieHepler.DeleteCookie(Response, CookieNames.Restore);
                 return NoContent();
             }
             catch (InvalidOperationException e)
@@ -305,6 +319,7 @@ namespace UserService.API.Controllers
             }
         }
 
+        //[AuthorizeToken(JwtTokenType.Access)]
         [HttpGet("get-users-info")]
         public async Task<IActionResult> GetPersonalInfo()
         {
@@ -377,7 +392,6 @@ namespace UserService.API.Controllers
             }
         }
 
-        //[EnableCors("AllowAuthService")]
         [HttpPost("get-password-reset-token-via-email")]
         public async Task<IActionResult> GetPasswordResetTokenViaEmail([FromBody] GetPasswordResetTokenDto dto)
         {
@@ -409,7 +423,7 @@ namespace UserService.API.Controllers
                 // Удаляем временный код из Redis
                 await _redisService.DeleteAsync($"pwd-reset:{dto.Email}");
 
-                CookieHepler.SetCookie(Response, "classified-password-reset-token", resetPasswordToken, minutes: 5);
+                CookieHepler.SetCookie(Response, CookieNames.PasswordReset, resetPasswordToken, minutes: 5);
 
                 return Ok("Reset token issued");
             }
@@ -419,6 +433,8 @@ namespace UserService.API.Controllers
             }
         }
 
+
+        [AuthorizeToken(JwtTokenType.PasswordReset)]
         [HttpPost("complete-password-restoration-via-email")]
         public async Task<IActionResult> CompletePasswordResorationViaEmail([FromForm] string newPassword)
         {
@@ -429,14 +445,11 @@ namespace UserService.API.Controllers
 
             var resetPasswordJwt = handler.ReadJwtToken(resetPasswordToken);
             var UserIdClaim = resetPasswordJwt.Claims.FirstOrDefault(c => c.Type == "userId")?.Value;
-            var tokenTypeClaim = resetPasswordJwt.Claims.FirstOrDefault(c => c.Type == "type")?.Value;
-
-            if (tokenTypeClaim != JwtTokenType.PasswordReset.ToString())
-                return Forbid();
 
             try
             {
                 await _userService.ChangePasswordAsync(Guid.Parse(UserIdClaim!), newPassword);
+                CookieHepler.DeleteCookie(Response, CookieNames.PasswordReset);
                 return Ok();
             }
             catch (Exception e) 
@@ -450,17 +463,14 @@ namespace UserService.API.Controllers
         /// /////// Email Change Via Email
         /// </summary>      
 
+        [AuthorizeToken(JwtTokenType.Access)]
         [HttpPost("start-email-change-via-email")]
         public async Task<IActionResult> startEmailChangeViaEmailViaEmail()
         {
             var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
-            var tokenTypeClaim = User.Claims.FirstOrDefault(c => c.Type == "type")?.Value;
 
             if (!Guid.TryParse(userIdClaim, out var userId))
                 return Unauthorized();
-
-            if (tokenTypeClaim != JwtTokenType.Access.ToString())
-                return Forbid();
 
             var currentEmail = await _userService.GetUserEmailById(userId);
             if (string.IsNullOrEmpty(currentEmail))
@@ -488,6 +498,7 @@ namespace UserService.API.Controllers
             }
         }
 
+        [AuthorizeToken(JwtTokenType.Access)]
         [HttpPost("confirm-old-email")]
         public async Task<IActionResult> confirmOldEmail([FromBody] EmailResetVerificationCodeDto dto)
         {
@@ -517,7 +528,7 @@ namespace UserService.API.Controllers
 
                 await _redisService.DeleteAsync($"old-password-cofirmation-code:{userId}");
 
-                CookieHepler.SetCookie(Response, "request-new-email-confirmation-token", resetEmailToken, minutes: 5);
+                CookieHepler.SetCookie(Response, CookieNames.RequestNewEmailCofirmation, resetEmailToken, minutes: 5);
 
                 return Ok("Reset token issued");
             }
@@ -527,6 +538,7 @@ namespace UserService.API.Controllers
             }
         }
 
+        [AuthorizeToken(JwtTokenType.RequestNewEmailCofirmation)]
         [HttpPost("send-new-email-cofirmation-code")]
         public async Task<IActionResult> sendCofirmationCodeToNewEmail([FromBody] EmailDto dto)
         {
@@ -538,10 +550,6 @@ namespace UserService.API.Controllers
             var resetPasswordJwt = handler.ReadJwtToken(resetPasswordToken);
 
             var userIdClaim = resetPasswordJwt.Claims.FirstOrDefault(c => c.Type == "userId")?.Value;
-            var tokenTypeClaim = resetPasswordJwt.Claims.FirstOrDefault(c => c.Type == "type")?.Value;
-
-            if (tokenTypeClaim != JwtTokenType.RequestNewEmailCofirmation.ToString())
-                return Forbid();
 
             try
             {
@@ -557,6 +565,8 @@ namespace UserService.API.Controllers
 
                 await _emailService.SendEmail(dto.email, "New email confirmation code", newEmailCOfirmationCode);
 
+                CookieHepler.DeleteCookie(Response, CookieNames.RequestNewEmailCofirmation);
+
                 return Ok("Reset code sent");
             }
             catch (InvalidOperationException e)
@@ -565,6 +575,7 @@ namespace UserService.API.Controllers
             }
         }
 
+        [AuthorizeToken(JwtTokenType.Access)]
         [HttpPost("confirm-new-email")]
         public async Task<IActionResult> confirmNewEmail([FromBody] EmailResetVerificationCodeDto dto)
         {
@@ -595,7 +606,7 @@ namespace UserService.API.Controllers
 
                 await _redisService.DeleteAsync($"new-email-cofirmation-code:{userId}");
 
-                CookieHepler.SetCookie(Response, "classified-email-reset-token", resetEmailToken, minutes: 5);
+                CookieHepler.SetCookie(Response, CookieNames.EmailReset, resetEmailToken, minutes: 5);
 
                 return Ok("Reset token issued");
             }
@@ -605,10 +616,11 @@ namespace UserService.API.Controllers
             }
         }
 
+        [AuthorizeToken(JwtTokenType.EmailReset)]
         [HttpPost("complete-email-change-via-email")]
         public async Task<IActionResult> CompleteEmailChangeViaEmailViaEmail()
         {
-            if (!Request.Cookies.TryGetValue("classified-email-reset-token", out var resetPasswordToken) || string.IsNullOrEmpty(resetPasswordToken))
+            if (!Request.Cookies.TryGetValue(CookieNames.EmailReset, out var resetPasswordToken) || string.IsNullOrEmpty(resetPasswordToken))
                 return Unauthorized("Refresh token is missing or invalid.");
 
             var handler = new JwtSecurityTokenHandler();
@@ -617,7 +629,6 @@ namespace UserService.API.Controllers
 
             var userIdClaim = resetPasswordJwt.Claims.FirstOrDefault(c => c.Type == "userId")?.Value;
             var newEmailClaim = resetPasswordJwt.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
-            var tokenTypeClaim = resetPasswordJwt.Claims.FirstOrDefault(c => c.Type == "type")?.Value;
            
             if (!Guid.TryParse(userIdClaim, out var userId))
                 return Unauthorized();
@@ -625,12 +636,10 @@ namespace UserService.API.Controllers
             if (string.IsNullOrEmpty(newEmailClaim)) 
                 return NotFound();
 
-            if (tokenTypeClaim != JwtTokenType.EmailReset.ToString())
-                return Forbid();
-
             try
             {
                 await _userService.ChangeEmailAsync(userId, newEmailClaim);
+                CookieHepler.DeleteCookie(Response, CookieNames.EmailReset);
                 return Ok();
             }
             catch (Exception e)
