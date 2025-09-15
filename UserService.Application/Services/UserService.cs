@@ -98,7 +98,7 @@ namespace UserService.Application.Services
             return userId;
         }
 
-        public async Task<(Guid Id, UserRole Role, bool isDeleted)> VerifyUsersCredentials(string emailOrPhone, string password)
+        public async Task<(Guid Id, string email, UserRole Role, bool isDeleted, bool isTwoFactorEnabled)> VerifyUsersCredentials(string emailOrPhone, string password)
         {
             var existingUser = await _userRepository.FindUserByEmailOrPhoneAsync(emailOrPhone, emailOrPhone);
             var isDeleted = false;
@@ -117,7 +117,7 @@ namespace UserService.Application.Services
                 throw new BlockedUserAccountException();                               
             }
 
-            return (existingUser.Id, existingUser.Role, isDeleted);
+            return (existingUser.Id, existingUser.Email, existingUser.Role, isDeleted, existingUser.IsTwoFactorEnabled);
         }
 
         public async Task PatchPersonProfileAsync(Guid userId, EditPersonUserDto? updatedProfile, string? newMainPhotoUrl)
@@ -242,9 +242,11 @@ namespace UserService.Application.Services
             await _userRepository.PatchUserInfoAsync(userId, phoneNumber: phoneNumber);
         }
 
-        public async Task<string?> GetUserEmailById(Guid id)
+        public async Task<User?> GetUserById(Guid id)
         {
-            return await _userRepository.GetUserEmailById(id);
+            var user = await _userRepository.GetUserById(id);
+
+            return user;
         }
 
         public async Task ChangeUserPasswordWithOldPasswordVerification(Guid userId, string oldPassord, string newPassword)
@@ -257,6 +259,11 @@ namespace UserService.Application.Services
             var hashedPassword = _passwordHasher.Generate(newPassword);
 
             await _userRepository.PatchUserInfoAsync(userId, passwordHash: hashedPassword);
+        }
+
+        public async Task SetTwoFactorAuthentication(string userId, bool flag)
+        {
+            await _userRepository.SetTwoFactorAuthentication(Guid.Parse(userId), flag);
         }
 
         /// <summary>

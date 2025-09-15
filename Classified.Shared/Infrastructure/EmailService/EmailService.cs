@@ -6,11 +6,10 @@ namespace Classified.Shared.Infrastructure.EmailService
 {
     public class EmailService : IEmailService
     {
-        private readonly IConfiguration _config;
+        private readonly IConfiguration _config = LibraryConfiguration.BuildConfiguration();
 
-        public EmailService(IConfiguration configuration)
+        public EmailService()
         {
-            _config = configuration;
         }
 
         public async Task SendEmail(string receptor, string subject, string body)

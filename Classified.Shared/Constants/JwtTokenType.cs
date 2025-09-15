@@ -8,8 +8,8 @@
         Device,
         PasswordReset,
         RequestNewEmailCofirmation,
-        //ConfirmNewEmail,
-        EmailReset
+        EmailReset,
+        TwoFactorAuthentication
     }
 
 }

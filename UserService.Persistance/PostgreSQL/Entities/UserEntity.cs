@@ -11,6 +11,7 @@ namespace UserService.Persistance.PostgreSQL.Entities
         public string PhoneNumber { get; set; } = default!;
         public UserRoleEntity Role { get; set; }
 
+        public bool IsTwoFactorEnabled { get; set; } = false;
         public bool IsVerified { get; set; } = false;
         public bool IsBlocked { get; set; } = false;
         public bool IsSoftDeleted { get; set; } = false;

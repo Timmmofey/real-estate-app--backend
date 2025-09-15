@@ -2,14 +2,13 @@
 using UserService.Application.DTOs;
 using UserService.Domain.Models;
 
-
 namespace UserService.Application.Abstactions
 {
     public interface IUserService
     {
         Task<Guid> CreatePersonUserAsync(CreatePersonUserDto dto, string? photoUrl);
         Task<Guid> CreateCompanyUserAsync(CreateCompanyUserDto dto, string? photoUrl);
-        Task<(Guid Id, UserRole Role, bool isDeleted)> VerifyUsersCredentials(string password, string emailOrPhone);
+        Task<(Guid Id, string email, UserRole Role, bool isDeleted, bool isTwoFactorEnabled)> VerifyUsersCredentials(string emailOrPhone, string password);
 
         Task PatchPersonProfileAsync(Guid userId, EditPersonUserDto? updatedProfile, string? newMainPhotoUrl);
         Task PatchCompanyProfileAsync(Guid userId, EditCompanyUserDto? updatedProfile, string? newMainPhotoUrl);
@@ -23,7 +22,8 @@ namespace UserService.Application.Abstactions
         Task ChangePasswordAsync(Guid userId, string password);
         Task ChangeEmailAsync(Guid userId, string email);
         Task ChangePhoneNumberAsync(Guid userId, string phoneNumber);
-        Task<string?> GetUserEmailById(Guid id);
+        Task<User?> GetUserById(Guid id);
         Task ChangeUserPasswordWithOldPasswordVerification(Guid userId, string oldPassord, string newPassword);
+        Task SetTwoFactorAuthentication(string userId, bool flag);
      }
 }

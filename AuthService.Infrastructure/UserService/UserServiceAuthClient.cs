@@ -1,5 +1,5 @@
 ﻿using AuthService.Domain.Abstactions;
-using AuthService.Domain.DTOs;
+using Classified.Shared.DTOs;
 using Microsoft.AspNetCore.WebUtilities;
 using System.Net.Http.Json;
 
@@ -28,6 +28,21 @@ namespace AuthService.Infrastructure.UserService
             if (!response.IsSuccessStatusCode) return null;
 
             return await response.Content.ReadFromJsonAsync<VerifiedUserDto>();
+        }
+
+        public async Task<string?> GetUserBy(string userId)
+        {
+            var queryParams = new Dictionary<string, string?>
+            {
+                { "userId", userId },
+            };
+
+            var url = QueryHelpers.AddQueryString("api/users/get-user-role-by-id", queryParams);
+
+            var response = await _http.PostAsync(url, null);
+            if (!response.IsSuccessStatusCode) return null;
+
+            return await response.Content.ReadFromJsonAsync<string>();
         }
     }
 }

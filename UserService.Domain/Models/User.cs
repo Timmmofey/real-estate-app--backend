@@ -11,6 +11,7 @@ namespace UserService.Domain.Models
         public string PhoneNumber { get; } = default!;
         public UserRole Role { get; }
 
+        public bool IsTwoFactorEnabled { get; set; } = false;
         public bool IsVerified { get; } = false;
         public bool IsBlocked { get; } = false;
         public bool IsSoftDeleted { get; } = false;
@@ -31,13 +32,14 @@ namespace UserService.Domain.Models
             Role = role;
         }
 
-        private User(Guid id, string email, string passwordHash, string phoneNumber, UserRole role, bool? isVerified, bool? isBlocked, bool? isSoftDeleted, bool? isPermanantlyDeleted, DateTime? createdAt, DateTime? deletedAt)
+        private User(Guid id, string email, string passwordHash, string phoneNumber, UserRole role, bool? isTwoFactorEnabled, bool? isVerified, bool? isBlocked, bool? isSoftDeleted, bool? isPermanantlyDeleted, DateTime? createdAt, DateTime? deletedAt)
         {
             Id = id;
             Email = email;
             PasswordHash = passwordHash;
             PhoneNumber = phoneNumber;
             Role = role;
+            IsTwoFactorEnabled = isTwoFactorEnabled ?? false;
             IsVerified = isVerified ?? false;
             IsBlocked = isBlocked ?? false;
             IsSoftDeleted = isSoftDeleted ?? false;
@@ -85,6 +87,7 @@ namespace UserService.Domain.Models
             string passwordHash,
             string phoneNumber,
             UserRole role,
+            bool? isTwoFactorEnabled,
             bool? isVerified,
             bool? isBlocked,
             bool? isSoftDeleted,
@@ -96,7 +99,7 @@ namespace UserService.Domain.Models
             if (validationError != null)
                 return (null, validationError);
 
-            var user = new User(id, email, passwordHash, phoneNumber, role, isVerified, isBlocked, isSoftDeleted, isPermanantlyDeleted, createdAt, deletedAt);
+            var user = new User(id, email, passwordHash, phoneNumber, role, isTwoFactorEnabled, isVerified, isBlocked, isSoftDeleted, isPermanantlyDeleted, createdAt, deletedAt);
             return (user, null);
         }
     }

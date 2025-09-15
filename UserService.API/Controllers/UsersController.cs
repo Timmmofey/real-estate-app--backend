@@ -15,6 +15,8 @@ using Microsoft.AspNetCore.Cors;
 using Classified.Shared.Infrastructure.RedisService;
 using Classified.Shared.Functions;
 using Classified.Shared.Filters;
+using UserService.Domain.Models;
+using Classified.Shared.DTOs;
 
 namespace UserService.API.Controllers
 {
@@ -102,13 +104,15 @@ namespace UserService.API.Controllers
         {
             try
             {
-                var (id, role, isDeleted) = await _userService.VerifyUsersCredentials(phoneOrEmail, password);
+                var (id, email, role, isDeleted, isTwoFactorEnabled) = await _userService.VerifyUsersCredentials(phoneOrEmail, password);
 
-                return Ok(new VerifiedUserResponseDto
+                return Ok(new VerifiedUserDto
                 {
                     Id = id,
                     Role = role,
-                    IsDeleted = isDeleted
+                    Email = email,
+                    IsDeleted = isDeleted,
+                    IsTwoFactorEnabled = isTwoFactorEnabled
                 });
             }
             catch (InvalidOperationException e)
@@ -319,7 +323,7 @@ namespace UserService.API.Controllers
             }
         }
 
-        //[AuthorizeToken(JwtTokenType.Access)]
+        [AuthorizeToken(JwtTokenType.Access)]
         [HttpGet("get-users-info")]
         public async Task<IActionResult> GetPersonalInfo()
         {
@@ -342,6 +346,21 @@ namespace UserService.API.Controllers
                 var profile = await _userService.GetUserProfileInfo(userId, userRole);
 
                 return Ok(profile);
+            }
+            catch (InvalidOperationException e)
+            {
+                throw new Exception(e.Message);
+            }
+        }
+
+        [AuthorizeToken(JwtTokenType.Access)]
+        [HttpGet("set-two-factor-authentication")]
+        public async Task<IActionResult> SetTwoFactorAuthentication(string userId, bool flag)
+        {
+            try
+            {
+                await _userService.SetTwoFactorAuthentication(userId, flag);
+                return Ok();
             }
             catch (InvalidOperationException e)
             {
@@ -438,7 +457,7 @@ namespace UserService.API.Controllers
         [HttpPost("complete-password-restoration-via-email")]
         public async Task<IActionResult> CompletePasswordResorationViaEmail([FromForm] string newPassword)
         {
-            if (!Request.Cookies.TryGetValue("classified-password-reset-token", out var resetPasswordToken) || string.IsNullOrEmpty(resetPasswordToken))
+            if (!Request.Cookies.TryGetValue(CookieNames.PasswordReset, out var resetPasswordToken) || string.IsNullOrEmpty(resetPasswordToken))
                 return Unauthorized("Refresh token is missing or invalid.");
             
             var handler = new JwtSecurityTokenHandler();
@@ -459,6 +478,14 @@ namespace UserService.API.Controllers
 
         }
 
+        [HttpGet("get-user-role-by-id")]
+        public async Task<UserRole?> GetUserById(string userId)
+        {
+            var user =  await _userService.GetUserById(Guid.Parse(userId));
+
+            return user?.Role;
+        }
+
         /// <summary>
         /// /////// Email Change Via Email
         /// </summary>      
@@ -472,8 +499,8 @@ namespace UserService.API.Controllers
             if (!Guid.TryParse(userIdClaim, out var userId))
                 return Unauthorized();
 
-            var currentEmail = await _userService.GetUserEmailById(userId);
-            if (string.IsNullOrEmpty(currentEmail))
+            var user = await _userService.GetUserById(userId);
+            if (string.IsNullOrEmpty(user?.Email))
                 return NotFound();
 
             try
@@ -488,7 +515,7 @@ namespace UserService.API.Controllers
                     expiration: TimeSpan.FromMinutes(5)
                 );
 
-                await _emailService.SendEmail(currentEmail, "Email Reset Code", emailResetCode);
+                await _emailService.SendEmail(user.Email, "Email Reset Code", emailResetCode);
 
                 return Ok("Reset code sent");
             }
@@ -542,7 +569,7 @@ namespace UserService.API.Controllers
         [HttpPost("send-new-email-cofirmation-code")]
         public async Task<IActionResult> sendCofirmationCodeToNewEmail([FromBody] EmailDto dto)
         {
-            if (!Request.Cookies.TryGetValue("request-new-email-confirmation-token", out var resetPasswordToken) || string.IsNullOrEmpty(resetPasswordToken))
+            if (!Request.Cookies.TryGetValue(CookieNames.RequestNewEmailCofirmation, out var resetPasswordToken) || string.IsNullOrEmpty(resetPasswordToken))
                 return Unauthorized("Refresh token is missing or invalid.");
 
             var handler = new JwtSecurityTokenHandler();

@@ -56,13 +56,20 @@ namespace AuthService.API.Controllers
                 }
 
 
-                var (tokens, restoreToken) = await _authService.LoginAsync(dto.PhoneOrEmail, dto.Password, deviceId);
+                var (tokens, restoreToken, twoFactorAuthenticatinToken) = await _authService.LoginAsync(dto.PhoneOrEmail, dto.Password, deviceId);
 
                 if (restoreToken != null)
                 {
-                    CookieHepler.SetCookie(Response, CookieNames.Restore, restoreToken, minutes: 10);
+                    CookieHepler.SetCookie(Response, CookieNames.Restore, restoreToken, minutes: 5);
 
                     return Ok(new { restore = true });
+                }
+
+                if (twoFactorAuthenticatinToken != null)
+                {
+                    CookieHepler.SetCookie(Response, CookieNames.TwoFactorAuthentication, twoFactorAuthenticatinToken, minutes: 5);
+
+                    return Ok(new { isTwoFactorAuth = true });
                 }
 
                 CookieHepler.SetCookie(Response, CookieNames.Auth, tokens!.AccessToken, minutes: 10);
@@ -74,6 +81,40 @@ namespace AuthService.API.Controllers
             {
                 return Unauthorized(new { Message = ex.Message });
             }
+        }
+
+        [AuthorizeToken(JwtTokenType.TwoFactorAuthentication)]
+        [HttpPost("Login-via-two-factor-auth")]
+        public async Task<IActionResult> LoginViaTwoFactorAuth(string code)
+        {
+            if (!Request.Cookies.TryGetValue(CookieNames.TwoFactorAuthentication, out var twoFactorAuthenticationToken) || string.IsNullOrEmpty(code))
+                return Unauthorized("2FA token is missing or invalid.");
+
+            if (!Request.Cookies.TryGetValue(CookieNames.Device , out var deviceIdToken) || string.IsNullOrEmpty(code))
+                return Unauthorized("Device token is missing or invalid.");
+
+            var handler = new JwtSecurityTokenHandler();
+
+            var twoFactorAuthJwt = handler.ReadJwtToken(twoFactorAuthenticationToken);
+            var UserIdClaim = twoFactorAuthJwt.Claims.FirstOrDefault(c => c.Type == "userId")!.Value;
+
+            var deviceJwt = handler.ReadJwtToken(deviceIdToken);
+            var deviceIdClaim = deviceJwt.Claims.FirstOrDefault(c => c.Type == "deviceId")!.Value;
+
+            try
+            {
+                var tokens = await _authService.LoginViaTWoFactorAuthentication(UserIdClaim, deviceIdClaim, code);
+
+                CookieHepler.SetCookie(Response, CookieNames.Auth, tokens!.AccessToken, minutes: 10);
+                CookieHepler.SetCookie(Response, CookieNames.Refresh, tokens.RefreshToken, days: 150);
+
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return Unauthorized(new { Message = ex.Message });
+            }
+
         }
 
         [AuthorizeToken(JwtTokenType.Refresh)]

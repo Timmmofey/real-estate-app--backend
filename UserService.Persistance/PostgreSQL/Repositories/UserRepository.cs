@@ -31,6 +31,7 @@ namespace UserService.Persistance.PostgreSQL.Repositories
                userEntity.PasswordHash,
                userEntity.PhoneNumber,
                (UserRole)userEntity.Role,
+               userEntity.IsTwoFactorEnabled,
                userEntity.IsVerified,
                userEntity.IsBlocked,
                userEntity.IsSoftDeleted,
@@ -103,6 +104,7 @@ namespace UserService.Persistance.PostgreSQL.Repositories
                 userEntity.PasswordHash,
                 userEntity.PhoneNumber,
                 (UserRole)userEntity.Role,
+                userEntity.IsTwoFactorEnabled,
                 userEntity.IsVerified,
                 userEntity.IsBlocked,
                 userEntity.IsSoftDeleted,
@@ -375,6 +377,16 @@ namespace UserService.Persistance.PostgreSQL.Repositories
 
             return passwordHash;
         }
+
+        public async Task SetTwoFactorAuthentication(Guid userId, bool flag)
+        {
+            var user = await _context.Users.Where(u => u.Id == userId)
+                .ExecuteUpdateAsync(setter => setter
+                    .SetProperty(u => u.IsTwoFactorEnabled, flag));
+
+            if (user == 0) throw new InvalidOperationException("User not found");
+        }
+             
 
         /// <summary>
         /// Private methods

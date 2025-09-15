@@ -10,6 +10,9 @@ using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using UAParser;
 using AuthService.Application;
+using Classified.Shared.Infrastructure.RedisService;
+using StackExchange.Redis;
+using Classified.Shared.Infrastructure.EmailService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,6 +51,12 @@ builder.Services.AddScoped<IRefreshTokenRepository, SessionRepository>();
 //
 builder.Services.AddValidatorsFromAssembly(typeof(AssemblyMarker).Assembly);
 builder.Services.AddFluentValidationAutoValidation();
+
+
+builder.Services.AddScoped<IRedisService, RedisService>();
+builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect("localhost:6379"));
+
+builder.Services.AddEmailService(configuration);
 
 builder.Services.AddJwtAuthentication(configuration);
 

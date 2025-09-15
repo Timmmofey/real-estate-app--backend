@@ -2,8 +2,11 @@
 using AuthService.Domain.DTOs;
 using AuthService.Domain.Models;
 using Classified.Shared.Constants;
+using Classified.Shared.Infrastructure.EmailService;
+using Classified.Shared.Infrastructure.RedisService;
 using DeviceDetectorNET;
 using Microsoft.AspNetCore.Http;
+using Newtonsoft.Json;
 using UAParser;
 
 namespace AuthService.Application.Services
@@ -14,16 +17,21 @@ namespace AuthService.Application.Services
         private readonly IUserServiceClient _userServiceClient;
         private readonly IJwtProvider _jwtProvider;
         private readonly IHttpContextAccessor _http;
+        private readonly IRedisService _redisService;
+        private readonly IEmailService _emailService;
 
-        public AuthService(IRefreshTokenRepository refreshTokenRepository, IUserServiceClient userServiceClient, IJwtProvider jwtProvider, IHttpContextAccessor http)
+
+        public AuthService(IRefreshTokenRepository refreshTokenRepository, IUserServiceClient userServiceClient, IJwtProvider jwtProvider, IHttpContextAccessor http, IRedisService redisService, IEmailService emailService)
         {
             _refreshTokenRepository = refreshTokenRepository;
             _userServiceClient = userServiceClient;
             _jwtProvider = jwtProvider;
             _http = http;
+            _redisService = redisService;
+            _emailService = emailService;
         }
 
-        public async Task<(TokenResponseDto?, string?)> LoginAsync(string phoneOrEmail, string password, Guid deviceId)
+        public async Task<(TokenResponseDto?, string?, string?)> LoginAsync(string phoneOrEmail, string password, Guid deviceId)
         {
             var user = await _userServiceClient.VerifyUserCredentialsAsync(phoneOrEmail, password);
 
@@ -33,44 +41,64 @@ namespace AuthService.Application.Services
             if (user.IsDeleted == true)
             {
                 var restoreToken = _jwtProvider.GenerateRestoreToken(user.Id);
-                return (null, restoreToken);
+                return (null, restoreToken, null);
             }
 
-            var sessionId = Guid.NewGuid();
-            var accessToken = _jwtProvider.GenerateAccessToken(user.Id, user.Role, sessionId);
-            var refreshToken = Guid.NewGuid();
-            var deviceToken = _jwtProvider.GenerateDeviceToken(deviceId);
-
-            var (deviceName, deviceType, ipAddress, country, city) = await GetDeviceInfo();
-
-            var (refreshTokenObj, error) = Session.Create(
-                sessionId,
-                user.Id,
-                user.Role,
-                refreshToken,
-                deviceId,
-                deviceName,
-                deviceType,
-                ipAddress,
-                country,
-                city,
-                null,
-                null
-            );
-
-            var clientsRefreshToken = _jwtProvider.GenerateRefreshToken(refreshToken);
-
-            if (refreshTokenObj == null)
-                throw new Exception($"Refresh token creation failed: {error}");
-
-            await _refreshTokenRepository.AddOrUpdateRefreshTokenAsync(refreshTokenObj);
-
-            return (new TokenResponseDto
+            if (user.IsTwoFactorEnabled == true)
             {
-                AccessToken = accessToken,
-                RefreshToken = clientsRefreshToken,
-                DeviceToken = deviceToken
-            }, null);
+                var code = Guid.NewGuid().ToString().Substring(0, 11).Replace("-", "").ToUpper();
+
+
+                var twoFactorAuthenticatinToken = _jwtProvider.GenerateTwoFactorAuthToken(user.Id);
+
+                var redisData = new
+                {
+                    Code = code,
+                    UserRole = user.Role
+                };
+
+                try
+                {
+                    await _redisService.SetAsync(
+                        key: $"two-factor-auth:{user.Id}",
+                        value: System.Text.Json.JsonSerializer.Serialize(redisData),
+                        expiration: TimeSpan.FromMinutes(5)
+                    );
+
+                    await _emailService.SendEmail(user.Email, "Two factor auth code", code);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"{ex}");
+                }
+
+                return (null, null, twoFactorAuthenticatinToken);
+            }
+
+            var tokens = await GenerateTokensAfterLogin(user.Id, user.Role, deviceId);
+
+            return (tokens, null, null);
+        }
+
+        public async Task<TokenResponseDto?> LoginViaTWoFactorAuthentication(string userId, string deviceId, string code)
+        {
+            var redisValue = await _redisService.GetAsync($"two-factor-auth:{userId}");
+
+            if (string.IsNullOrEmpty(redisValue))
+                throw new Exception("There is no code for this user");
+
+            var redisData = JsonConvert.DeserializeObject<dynamic>(redisValue);
+
+            string storedCode = redisData!.Code;
+            int userRoleValue = (int)redisData!.UserRole;
+            var parsedRole = (UserRole)userRoleValue;
+
+            if (!string.Equals(storedCode, code, StringComparison.OrdinalIgnoreCase))
+                throw new Exception("Invalid verification code");
+
+            var tokens = await GenerateTokensAfterLogin(Guid.Parse(userId), parsedRole, Guid.Parse(deviceId));
+
+            return tokens;
         }
 
         public async Task<TokenResponseDto> RefreshAsync(Guid refreshToken, Guid deviceId)
@@ -220,6 +248,43 @@ namespace AuthService.Application.Services
             return (deviceName, deviceType, ipAddress, country, city);
         }
 
+        private async Task<TokenResponseDto> GenerateTokensAfterLogin(Guid userId, UserRole role, Guid deviceId)
+        {
+            var sessionId = Guid.NewGuid();
+            var accessToken = _jwtProvider.GenerateAccessToken(userId, role, sessionId);
+            var refreshToken = Guid.NewGuid();
+            var deviceToken = _jwtProvider.GenerateDeviceToken(deviceId);
 
+            var (deviceName, deviceType, ipAddress, country, city) = await GetDeviceInfo();
+
+            var (refreshTokenObj, error) = Session.Create(
+                sessionId,
+                userId,
+                role,
+                refreshToken,
+                deviceId,
+                deviceName,
+                deviceType,
+                ipAddress,
+                country,
+                city,
+                null,
+                null
+            );
+
+            var clientsRefreshToken = _jwtProvider.GenerateRefreshToken(refreshToken);
+
+            if (refreshTokenObj == null)
+                throw new Exception($"Refresh token creation failed: {error}");
+
+            await _refreshTokenRepository.AddOrUpdateRefreshTokenAsync(refreshTokenObj);
+
+            return (new TokenResponseDto
+            {
+                AccessToken = accessToken,
+                RefreshToken = clientsRefreshToken,
+                DeviceToken = deviceToken
+            });
+        }
     }
 }

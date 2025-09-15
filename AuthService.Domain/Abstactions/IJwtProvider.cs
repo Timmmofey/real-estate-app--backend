@@ -11,6 +11,7 @@ namespace AuthService.Domain.Abstactions
         public string GenerateResetPasswordResetToken(Guid userId);
         public string GenerateResetEmailResetToken(Guid userId, string newEmail);
         public string GenerateRequestNewEmailCofirmationToken(Guid userId);
+        public string GenerateTwoFactorAuthToken(Guid userId);
 
     }
 }
