@@ -14,21 +14,29 @@ namespace Classified.Shared.Infrastructure.EmailService
 
         public async Task SendEmail(string receptor, string subject, string body)
         {
+            try
+            {
 
-            var email = _config["EmailService:Email"];
-            var password = _config["EmailService:Password"];
-            var host = _config["EmailService:Host"];
-            var port = int.Parse(_config["EmailService:Port"]!);
+                var email = _config["EmailService:Email"];
+                var password = _config["EmailService:Password"];
+                var host = _config["EmailService:Host"];
+                var port = int.Parse(_config["EmailService:Port"]!);
 
-            var smtpClient = new SmtpClient(host, port);
+                var smtpClient = new SmtpClient(host, port);
 
-            smtpClient.EnableSsl = true;
-            smtpClient.UseDefaultCredentials = false;
+                smtpClient.EnableSsl = true;
+                smtpClient.UseDefaultCredentials = false;
 
-            smtpClient.Credentials = new NetworkCredential(email, password);
+                smtpClient.Credentials = new NetworkCredential(email, password);
 
-            var message = new MailMessage(email!, receptor, subject, body);
-            await smtpClient.SendMailAsync(message);
+                var message = new MailMessage(email!, receptor, subject, body);
+                await smtpClient.SendMailAsync(message);
+
+            }
+            catch (SmtpException ex)
+            {
+                throw new InvalidOperationException("Ошибка при отправке email", ex);
+            }
         }
     }
 }

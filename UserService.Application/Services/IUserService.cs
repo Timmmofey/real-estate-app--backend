@@ -1,4 +1,5 @@
 ﻿using Classified.Shared.Constants;
+using Classified.Shared.DTOs;
 using UserService.Application.DTOs;
 using UserService.Domain.Models;
 
@@ -6,12 +7,12 @@ namespace UserService.Application.Abstactions
 {
     public interface IUserService
     {
-        Task<Guid> CreatePersonUserAsync(CreatePersonUserDto dto, string? photoUrl);
-        Task<Guid> CreateCompanyUserAsync(CreateCompanyUserDto dto, string? photoUrl);
-        Task<(Guid Id, string email, UserRole Role, bool isDeleted, bool isTwoFactorEnabled)> VerifyUsersCredentials(string emailOrPhone, string password);
+        Task<Guid> CreatePersonUserAsync(CreatePersonUserDto dto);
+        Task<Guid> CreateCompanyUserAsync(CreateCompanyUserDto dto);
+        Task<VerifiedUserDto> VerifyUsersCredentials(string emailOrPhone, string password);
 
-        Task PatchPersonProfileAsync(Guid userId, EditPersonUserDto? updatedProfile, string? newMainPhotoUrl);
-        Task PatchCompanyProfileAsync(Guid userId, EditCompanyUserDto? updatedProfile, string? newMainPhotoUrl);
+        Task PatchPersonProfileAsync(Guid userId, EditPersonUserRequest updatedProfile);
+        Task PatchCompanyProfileAsync(Guid userId, EditCompanyUserRequest updatedProfile);
         Task<string?> GetUserMainPhotoUrlByUserId(Guid userId);
 
         Task SoftDeleteAccount(Guid id);
@@ -25,5 +26,12 @@ namespace UserService.Application.Abstactions
         Task<User?> GetUserById(Guid id);
         Task ChangeUserPasswordWithOldPasswordVerification(Guid userId, string oldPassord, string newPassword);
         Task SetTwoFactorAuthentication(string userId, bool flag);
+        Task StartPasswordResetViaEmail(string email);
+        Task<string> GetPasswordResetTokenViaEmail(GetPasswordResetTokenDto dto);
+        Task startEmailChangeViaEmailViaEmail(Guid userId);
+        Task<string> getResetEmailToken(Guid userId, string verificationCode);
+        Task sendCofirmationCodeToNewEmail(Guid userId, string email);
+
+        Task<string> confirmNewEmail(Guid userId, string verificationCode);
      }
 }

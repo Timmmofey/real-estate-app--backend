@@ -14,11 +14,10 @@
 
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
-    <PackageReference Include="Confluent.Kafka" Version="2.10.0" />
+    <PackageReference Include="Confluent.Kafka" Version="2.11.1" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\UserService.Application\UserService.Application.csproj" />
     <ProjectReference Include="..\UserService.Domain\UserService.Domain.csproj" />
   </ItemGroup>
 
