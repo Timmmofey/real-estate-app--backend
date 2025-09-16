@@ -23,20 +23,14 @@ namespace Classified.Shared.Functions
 
         public static void DeleteCookie(HttpResponse response, string name, bool secure = true)
         {
-            response.Cookies.Append(name, "", new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = secure,
-                SameSite = SameSiteMode.None,
-                Expires = DateTimeOffset.UtcNow.AddDays(-1)
-            });
+            SetCookie(response, name, "", days: 1);
         }
 
         public static void RemoveRefreshAuthDeviceTokens(HttpResponse response)
         {
-            CookieHepler.DeleteCookie(response, JwtTokenType.Access.ToString());
-            CookieHepler.DeleteCookie(response, JwtTokenType.Refresh.ToString());
-            CookieHepler.DeleteCookie(response, JwtTokenType.Device.ToString());
+            DeleteCookie(response, CookieNames.Auth.ToString());
+            DeleteCookie(response, CookieNames.Refresh.ToString());
+            DeleteCookie(response, CookieNames.Device.ToString());
         }
     }
 }
