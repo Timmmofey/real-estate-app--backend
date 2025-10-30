@@ -7,6 +7,8 @@ using UserService.Application.DTOs;
 using UserService.Application.Abstactions;
 using Classified.Shared.Functions;
 using Classified.Shared.Filters;
+using Microsoft.AspNetCore.Cors;
+using Classified.Shared.DTOs;
 
 namespace UserService.API.Controllers
 {
@@ -52,6 +54,7 @@ namespace UserService.API.Controllers
             }
         }
 
+        //[EnableCors("AllowAuthService")]
         [HttpPost("verify-user-credentials")]
         public async Task<IActionResult> VerifyUserCredentials(string phoneOrEmail, string password)
         {
@@ -224,12 +227,19 @@ namespace UserService.API.Controllers
         }
 
         [AuthorizeToken(JwtTokenType.Access)]
-        [HttpGet("set-two-factor-authentication")]
-        public async Task<IActionResult> SetTwoFactorAuthentication(string userId, bool flag)
+        [HttpPost("request-toggle-two-factor-authentication-code")]
+        public async Task<IActionResult> RequestToggleTwoFactorAuthenticationCode()
         {
+            var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
+
+            if (!Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized();
+            }
+
             try
             {
-                await _userService.SetTwoFactorAuthentication(userId, flag);
+                await _userService.RequestToggleTwoFactorAuthenticationCode(userId);
                 return Ok();
             }
             catch (InvalidOperationException e)
@@ -238,11 +248,33 @@ namespace UserService.API.Controllers
             }
         }
 
-        /// <summary>
-        /// /////// Reset Password Via Email
-        /// </summary> 
+        [AuthorizeToken(JwtTokenType.Access)]
+        [HttpPost("toggle-two-factor-authentication")]
+        public async Task<IActionResult> ToggleTwoFactorAuthentication(VerificationCodeDto dto)
+        {
+            var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
 
-        [HttpPost("start-password-reset-via-email")]
+            if (!Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                await _userService.ToggleTwoFactorAuthentication(userId, dto.Code);
+                return Ok();
+            }
+            catch (InvalidOperationException e)
+            {
+                return BadRequest(e.Message);
+            }
+        }
+
+            /// <summary>
+            /// /////// Reset Password Via Email
+            /// </summary> 
+
+            [HttpPost("start-password-reset-via-email")]
         public async Task<IActionResult> StartPasswordResetViaEmail([FromForm] string email)
         {
             

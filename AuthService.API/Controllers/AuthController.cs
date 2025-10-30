@@ -84,8 +84,8 @@ namespace AuthService.API.Controllers
         }
 
         [AuthorizeToken(JwtTokenType.TwoFactorAuthentication)]
-        [HttpPost("Login-via-two-factor-auth")]
-        public async Task<IActionResult> LoginViaTwoFactorAuth(string code)
+        [HttpPost("login-via-two-factor-auth")]
+        public async Task<IActionResult> LoginViaTwoFactorAuth([FromBody]string code)
         {
             if (!Request.Cookies.TryGetValue(CookieNames.TwoFactorAuthentication, out var twoFactorAuthenticationToken) || string.IsNullOrEmpty(code))
                 return Unauthorized("2FA token is missing or invalid.");
@@ -231,6 +231,13 @@ namespace AuthService.API.Controllers
             }
 
             var sessions = await _authService.GetUsersSessions(userId, sessionId);
+
+            if (sessions == null || !sessions.Any())
+            {
+                CookieHepler.RemoveRefreshAuthDeviceTokens(Response);
+                return NoContent();
+            }
+
             return Ok(sessions);
         }
 

@@ -25,7 +25,8 @@ namespace UserService.Application.Abstactions
         Task ChangePhoneNumberAsync(Guid userId, string phoneNumber);
         Task<User?> GetUserById(Guid id);
         Task ChangeUserPasswordWithOldPasswordVerification(Guid userId, string oldPassord, string newPassword);
-        Task SetTwoFactorAuthentication(string userId, bool flag);
+        Task RequestToggleTwoFactorAuthenticationCode(Guid userId);
+        Task ToggleTwoFactorAuthentication(Guid userId, string verificationCode);
         Task StartPasswordResetViaEmail(string email);
         Task<string> GetPasswordResetTokenViaEmail(GetPasswordResetTokenDto dto);
         Task startEmailChangeViaEmailViaEmail(Guid userId);

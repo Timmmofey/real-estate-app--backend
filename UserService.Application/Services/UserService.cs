@@ -290,6 +290,7 @@ namespace UserService.Application.Services
                     Email = user.Email,
                     PhoneNumer = user.PhoneNumber,
                     IsVerified = user.IsVerified,
+                    IsTwoFactorEnabled = user.IsTwoFactorEnabled,
                     MainPhotoUrl = profile?.MainPhotoUrl,
                     Country = profile?.Country,
                     Region = profile?.Region,
@@ -314,6 +315,7 @@ namespace UserService.Application.Services
                    Email = user.Email,
                    PhoneNumer = user.PhoneNumber,
                    IsVerified = user.IsVerified,
+                   IsTwoFactorEnabled = user.IsTwoFactorEnabled,
                    Country = profile.Country,
                    Region = profile.Region,
                    Settlement = profile.Settlement,
@@ -376,9 +378,45 @@ namespace UserService.Application.Services
             await _userRepository.PatchUserInfoAsync(userId, passwordHash: hashedPassword);
         }
 
-        public async Task SetTwoFactorAuthentication(string userId, bool flag)
+        public async Task RequestToggleTwoFactorAuthenticationCode(Guid userId)
         {
-            await _userRepository.SetTwoFactorAuthentication(Guid.Parse(userId), flag);
+            var user = await _userRepository.GetUserById(userId);
+            if (string.IsNullOrEmpty(user?.Email))
+                throw new Exception("User not found"); ;
+
+
+            var verificationCode = Guid.NewGuid().ToString().Substring(0, 11).Replace("-", "").ToUpper();
+
+            var redisData = new
+            {
+                Code = verificationCode,
+                UserId = userId
+            };
+
+            await _redisService.SetAsync(
+                key: $"toggle-two-step-auth-code:{userId}",
+                value: System.Text.Json.JsonSerializer.Serialize(redisData),
+                expiration: TimeSpan.FromMinutes(5)
+            );
+
+            await _emailService.SendEmail(user.Email, "Two step authentication confirmation code", verificationCode);
+        }
+
+        public async Task ToggleTwoFactorAuthentication(Guid userId, string verificationCode)
+        {
+            var redisValue = await _redisService.GetAsync($"toggle-two-step-auth-code:{userId}");
+
+            if (string.IsNullOrEmpty(redisValue))
+                throw new Exception("Verification code expired or not found");
+
+            var redisData = JsonConvert.DeserializeObject<dynamic>(redisValue); ;
+
+            string storedCode = redisData!.Code;
+
+            if (!string.Equals(storedCode, verificationCode, StringComparison.OrdinalIgnoreCase))
+                throw new Exception("Invalid verification code");
+
+            await _userRepository.ToggleTwoFactorAuthentication(userId);
         }
 
         public async Task StartPasswordResetViaEmail(string email)
@@ -389,12 +427,12 @@ namespace UserService.Application.Services
             if (userId is null)
                 throw new Exception("User with such email doesn't exist");
 
-            var passwordResetCode = Guid.NewGuid().ToString().Substring(0, 11).Replace("-", "").ToUpper();
+            var verificationCode = Guid.NewGuid().ToString().Substring(0, 11).Replace("-", "").ToUpper();
 
             // Сохраняем verificationCode и userId в Redis
             var redisData = new
             {
-                Code = passwordResetCode,
+                Code = verificationCode,
                 UserId = userId
             };
 
@@ -404,7 +442,7 @@ namespace UserService.Application.Services
                 expiration: TimeSpan.FromMinutes(5)
             );
 
-            await _emailService.SendEmail(email, "Password Reset Code", passwordResetCode);
+            await _emailService.SendEmail(email, "Password Reset Code", verificationCode);
         }
 
         public async Task<string> GetPasswordResetTokenViaEmail(GetPasswordResetTokenDto dto)

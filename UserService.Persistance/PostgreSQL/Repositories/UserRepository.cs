@@ -378,15 +378,28 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             return passwordHash;
         }
 
-        public async Task SetTwoFactorAuthentication(Guid userId, bool flag)
+        public async Task ToggleTwoFactorAuthentication(Guid userId)
         {
-            var user = await _context.Users.Where(u => u.Id == userId)
-                .ExecuteUpdateAsync(setter => setter
-                    .SetProperty(u => u.IsTwoFactorEnabled, flag));
+            var user = await _context.Users
+                .Where(u => u.Id == userId)
+                .Select(u => new { u.IsTwoFactorEnabled })
+                .SingleOrDefaultAsync();
 
-            if (user == 0) throw new InvalidOperationException("User not found");
+            if (user == null)
+                throw new InvalidOperationException("User not found");
+
+            var newValue = !user.IsTwoFactorEnabled;
+
+            var affected = await _context.Users
+                .Where(u => u.Id == userId)
+                .ExecuteUpdateAsync(setter => setter
+                    .SetProperty(u => u.IsTwoFactorEnabled, newValue));
+
+            if (affected == 0)
+                throw new InvalidOperationException("User not found");
         }
-             
+
+
 
         /// <summary>
         /// Private methods
