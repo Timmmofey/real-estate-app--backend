@@ -9,6 +9,9 @@ using Classified.Shared.Functions;
 using Classified.Shared.Filters;
 using Microsoft.AspNetCore.Cors;
 using Classified.Shared.DTOs;
+using UserService.Domain.Exeptions;
+using Microsoft.Extensions.Localization;
+using UserService.API.Resources;
 
 namespace UserService.API.Controllers
 {
@@ -17,11 +20,13 @@ namespace UserService.API.Controllers
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
-        
+        private readonly IStringLocalizer<Messages> _localizer;
 
-        public UsersController(IUserService userService)
+
+        public UsersController(IUserService userService, IStringLocalizer<Messages> localizer)
         {
             _userService = userService;
+            _localizer = localizer;
         }
 
         [HttpPost("add-person-user")]
@@ -31,12 +36,24 @@ namespace UserService.API.Controllers
             try
             {
                 var userId = await _userService.CreatePersonUserAsync(dto);
-                return Created($"/users/{userId}", new { Message = "User has been created successfully", UserId = userId });
+                return Created($"/users/{userId}", new { Message = _localizer["UserCreated"], UserId = userId });
             }
-            catch (InvalidOperationException e)
+            catch (UserAlreadyExistsException)
             {
-                return NotFound(e.Message);
+                return Conflict(new { Message = _localizer["UserAlreadyExists"] });
             }
+            catch (RecentlyDeletedUserExceptionOnCreating)
+            {
+                return Conflict(new { Message = _localizer["RecentlyDeletedUser"] });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message }); // fallback
+            }
+            //catch (InvalidOperationException e)
+            //{
+            //    return NotFound(e.Message);
+            //}
         }
 
         [HttpPost("add-company-user")]
@@ -274,7 +291,7 @@ namespace UserService.API.Controllers
             /// /////// Reset Password Via Email
             /// </summary> 
 
-            [HttpPost("start-password-reset-via-email")]
+        [HttpPost("start-password-reset-via-email")]
         public async Task<IActionResult> StartPasswordResetViaEmail([FromForm] string email)
         {
             

@@ -13,13 +13,16 @@ using Classified.Shared.Infrastructure.EmailService;
 using UserService.Infrastructure.AuthService;
 using StackExchange.Redis;
 using Classified.Shared.Infrastructure.RedisService;
-//using UserService.Infrastructure.RedisService;
+
 
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 
 // Add services to the container.
+
+//Localization
+builder.Services.AddAppLocalization();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -61,12 +64,12 @@ builder.Services.AddScoped<IRedisService, RedisService>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
-        {
-            policy.WithOrigins("http://localhost:3000")
-                  .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .AllowCredentials();
-        });
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
 
     options.AddPolicy("AllowAuthService", policy =>
     {
@@ -86,10 +89,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-
-
 // Добавляем мидлвар для глобальной обработки ошибок
 //app.UseMiddleware<GlobalExceptionMiddleware>();
+
+app.UseAppLocalization();
+
+
 
 app.UseHttpsRedirection();
 
