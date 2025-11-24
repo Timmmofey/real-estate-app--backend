@@ -9,5 +9,7 @@ namespace Classified.Shared.DTOs
         public string Email { get; set; } = default!;
         public bool IsDeleted { get; set; }
         public bool IsTwoFactorEnabled { get; set; }
+        public bool IsBlocked { get; set; }
+
     }
 }
