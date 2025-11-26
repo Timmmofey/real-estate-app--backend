@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Builder;
+﻿using Classified.Shared.Constants;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -12,11 +13,13 @@ namespace Classified.Shared.Extensions
         {
             services.AddLocalization();
 
-            var supportedCultures = new[] { new CultureInfo("en"), new CultureInfo("ru") };
+            var supportedCultures = GetSupportedCultures();
+
+            var defaultCulture = GetDefaultCulture();
 
             var requestLocalizationOptions = new RequestLocalizationOptions
             {
-                DefaultRequestCulture = new RequestCulture("en"),
+                DefaultRequestCulture = defaultCulture,
                 SupportedCultures = supportedCultures,
                 SupportedUICultures = supportedCultures
             };
@@ -47,10 +50,14 @@ namespace Classified.Shared.Extensions
             else
             {
                 // fallback
-                var fallbackCultures = new[] { new CultureInfo("en"), new CultureInfo("ru") };
+
+                var fallbackCultures = GetSupportedCultures();
+
+                var defaultCulture = GetDefaultCulture();
+
                 var fallback = new RequestLocalizationOptions
                 {
-                    DefaultRequestCulture = new RequestCulture("en"),
+                    DefaultRequestCulture = defaultCulture,
                     SupportedCultures = fallbackCultures,
                     SupportedUICultures = fallbackCultures
                 };
@@ -70,5 +77,22 @@ namespace Classified.Shared.Extensions
             ((IApplicationBuilder)app).UseAppLocalization();
             return app;
         }
+
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+
+
+
+        private static CultureInfo[] GetSupportedCultures() =>
+            Enum.GetNames(typeof(Language))
+                .Select(lang => new CultureInfo(lang))
+                .ToArray();
+
+        private static RequestCulture GetDefaultCulture() =>
+            new(Language.en.ToString());
     }
 }
