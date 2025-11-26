@@ -14,75 +14,72 @@ namespace GeoService.Application.Services
         private readonly IRedisService _redis;
         private readonly JsonSerializerOptions _jsonOptions;
         private readonly string _apiKey;
+        private readonly ITranslateServiceClient _translateServiceClient;
 
-        public GeoapifyGeoService(HttpClient httpClient, IRedisService redis, IConfiguration config)
+        public GeoapifyGeoService(HttpClient httpClient, IRedisService redis, IConfiguration config, ITranslateServiceClient translateServiceClient)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _redis = redis ?? throw new ArgumentNullException(nameof(redis));
             _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             _apiKey = config["GEOAPIFY_API_KEY"] ?? throw new InvalidOperationException("GEOAPIFY_API_KEY is not configured");
+            _translateServiceClient = translateServiceClient;
         }
 
-        public async Task<IReadOnlyList<PlaceSuggestion>> GetSettlementSuggestionsAsync(
+        public async Task<IReadOnlyList<SettlementSuggestionDto>> GetSettlementSuggestionsAsync(
             string countryCode,
-            string regionCode, 
+            string regionCode,
             string settlement
         )
         {
             const int limit = 10;
 
-            string countryCodeUpper = countryCode.ToUpperInvariant();
-            string? regionName = null;
-
-            if (string.IsNullOrWhiteSpace(regionCode) || string.IsNullOrWhiteSpace(countryCode) || string.IsNullOrWhiteSpace(settlement))
+            if (string.IsNullOrWhiteSpace(countryCode) ||
+                string.IsNullOrWhiteSpace(regionCode) ||
+                string.IsNullOrWhiteSpace(settlement))
                 throw new ArgumentException("One or more required parameters are empty");
+
+            string countryCodeUpper = countryCode.ToUpperInvariant();
 
             if (!GeoConstants.Countries.Any(c => c.Code.Equals(countryCodeUpper, StringComparison.OrdinalIgnoreCase)))
                 throw new ArgumentException($"Country code '{countryCodeUpper}' not found in constants");
 
-            if (!GeoConstants.RegionsByCountry.TryGetValue(countryCodeUpper, out var reginos))
+            if (!GeoConstants.RegionsByCountry.TryGetValue(countryCodeUpper, out var regions))
                 throw new ArgumentException($"No regions found for country '{countryCodeUpper}'");
 
-            var region = reginos.FirstOrDefault(r => r.Code.Equals(regionCode, StringComparison.OrdinalIgnoreCase));
+            var region = regions.FirstOrDefault(r => r.Code.Equals(regionCode, StringComparison.OrdinalIgnoreCase));
+            if (region == null)
+                return Array.Empty<SettlementSuggestionDto>();
 
-            if (region== null)
-                return Array.Empty<PlaceSuggestion>();
+            string regionName = region.Name;
 
-            regionName = region.Name;
-            
-
-            var cacheKey = $"geo:geoapify:settlements:{countryCodeUpper}:{regionName}:{limit}:{settlement}".ToLowerInvariant();
+            var cacheKey = $"geo:settlements:{countryCodeUpper}:{regionName}:{limit}:{settlement}".ToLowerInvariant();
             var cached = await _redis.GetAsync(cacheKey);
+            if (!string.IsNullOrWhiteSpace(cached))
+                return JsonSerializer.Deserialize<List<SettlementSuggestionDto>>(cached) ?? new List<SettlementSuggestionDto>();
 
-            if (!string.IsNullOrEmpty(cached))
-                return JsonSerializer.Deserialize<List<PlaceSuggestion>>(cached) ?? new List<PlaceSuggestion>();
-
-            var filters = new List<string>();
-            if (!string.IsNullOrWhiteSpace(countryCodeUpper))
-                filters.Add($"countrycode:{countryCodeUpper.ToLowerInvariant()}");
-            var filterParam = filters.Count > 0 ? $"&filter={string.Join(",", filters)}" : "";
 
             var url = $"/v1/geocode/autocomplete" +
                       $"?text={Uri.EscapeDataString(settlement)}" +
                       $"&type=city" +
                       $"&limit={limit * 3}" +
-                      $"{filterParam}" +
+                      $"&filter=countrycode:{countryCodeUpper.ToLowerInvariant()}" +
                       $"&apiKey={_apiKey}";
 
             GeoapifyDtos? response;
+
             try
             {
                 response = await _httpClient.GetFromJsonAsync<GeoapifyDtos>(url, _jsonOptions);
             }
             catch (HttpRequestException)
             {
-                return Array.Empty<PlaceSuggestion>();
+                return Array.Empty<SettlementSuggestionDto>();
             }
 
             if (response?.Features == null || response.Features.Count == 0)
             {
-                await _redis.SetAsync(cacheKey, JsonSerializer.Serialize(new List<PlaceSuggestion>()), TimeSpan.FromHours(1));
-                return Array.Empty<PlaceSuggestion>();
+                await _redis.SetAsync(cacheKey, "[]", TimeSpan.FromHours(1));
+                return Array.Empty<SettlementSuggestionDto>();
             }
 
             var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -90,33 +87,51 @@ namespace GeoService.Application.Services
                 "city", "town", "village", "hamlet", "locality"
             };
 
-            var suggestions = response.Features
+            var rawSuggestions = response.Features
                 .Where(f => f.Properties != null)
-                .Where(f => {
+                .Where(f =>
+                {
                     var t = f.Properties!.Type ?? f.Properties!.PlaceType;
                     return string.IsNullOrWhiteSpace(t) || allowedTypes.Contains(t);
                 })
-                .Select(f => new PlaceSuggestion(
-                    DisplayName: f.Properties!.Formatted ?? f.Properties!.Name ?? f.Properties!.City ?? "",
-                    OSMType: "geoapify",
-                    OSMId: 0,
-                    Lat: f.Geometry?.Coordinates?.ElementAtOrDefault(1) ?? 0,
-                    Lon: f.Geometry?.Coordinates?.ElementAtOrDefault(0) ?? 0,
-                    CountryCode: f.Properties!.CountryCode?.ToUpperInvariant() ?? "",
-                    Region: f.Properties!.State,
-                    County: f.Properties!.County,
-                    Settlement: f.Properties!.City ?? f.Properties!.Name,
-                    Postcode: f.Properties!.Postcode
-                ))
-                .Where(s => (!string.IsNullOrWhiteSpace(s.Region) && s.Region!.IndexOf(regionName, StringComparison.OrdinalIgnoreCase) >= 0))
+                .Select(f => new
+                {
+                    DisplayName = f.Properties!.Formatted ?? f.Properties!.Name ?? f.Properties!.City ?? "",
+                    Settlement = f.Properties!.City ?? f.Properties!.Name ?? "",
+                    Region = f.Properties!.State ?? ""
+                })
+                .Where(s => !string.IsNullOrWhiteSpace(s.Region) &&
+                            s.Region.Contains(regionName, StringComparison.OrdinalIgnoreCase))
                 .Take(limit)
                 .ToList();
 
-            await _redis.SetAsync(cacheKey, JsonSerializer.Serialize(suggestions), TimeSpan.FromHours(12));
-            return suggestions;
+
+            var result = new List<SettlementSuggestionDto>(rawSuggestions.Count);
+
+            foreach (var s in rawSuggestions)
+            {
+                var settlementTranslations = await _translateServiceClient.TranslateAsync(s.Settlement);
+                var displayNameTranslations = await _translateServiceClient.TranslateAsync(s.DisplayName);
+
+                result.Add(new SettlementSuggestionDto
+                {
+                    Settlement = s.Settlement,
+                    Other_Settlement_Names = settlementTranslations,
+
+                    DisplayName = s.DisplayName,
+                    Other_DisplayName_Names = displayNameTranslations
+                });
+            }
+
+
+            await _redis.SetAsync(
+                cacheKey,
+                JsonSerializer.Serialize(result),
+                TimeSpan.FromHours(12)
+            );
+
+            return result;
         }
-
-
 
         public async Task<IReadOnlyList<PlaceSuggestion>> GetAddressSuggestionsAsync(
             string countryCode,
@@ -200,7 +215,6 @@ namespace GeoService.Application.Services
             string streetAndNumber
         )
         {
-            // 1. Валидация входных данных
             if (string.IsNullOrWhiteSpace(streetAndNumber) ||
                 string.IsNullOrWhiteSpace(settlement) ||
                 string.IsNullOrWhiteSpace(countryCode))
@@ -214,10 +228,8 @@ namespace GeoService.Application.Services
             if (!GeoConstants.Countries.Any(c => c.Code.Equals(countryCodeUpper, StringComparison.OrdinalIgnoreCase)))
                 return Array.Empty<string>();
 
-            // 2. Формируем текст поиска
             var queryText = $"{streetAndNumber} {settlement} {regionCode}";
 
-            // 3. Кэш
             var cacheKey = $"geo:geoapify:postcodes:{countryCodeUpper}:{limit}:{queryText}".ToLowerInvariant();
             var cached = await _redis.GetAsync(cacheKey);
             if (!string.IsNullOrEmpty(cached))
@@ -225,7 +237,6 @@ namespace GeoService.Application.Services
                 return JsonSerializer.Deserialize<List<string>>(cached) ?? new List<string>();
             }
 
-            // 4. Формируем URL запроса
             var url = $"/v1/geocode/autocomplete" +
                       $"?text={Uri.EscapeDataString(queryText)}" +
                       $"&filter=countrycode:{countryCodeUpper.ToLowerInvariant()}" +
@@ -243,63 +254,36 @@ namespace GeoService.Application.Services
                 return Array.Empty<string>();
             }
 
-            // 5. Если ничего не найдено
             if (resp?.Features == null || resp.Features.Count == 0)
             {
                 await _redis.SetAsync(cacheKey, JsonSerializer.Serialize(new List<string>()), TimeSpan.FromHours(1));
                 return Array.Empty<string>();
             }
 
-            // 6. Собираем уникальные почтовые индексы
             var postcodes = resp.Features
                 .Where(f => !string.IsNullOrWhiteSpace(f.Properties?.Postcode))
                 .Select(f => f.Properties!.Postcode!)
                 .Distinct()
                 .ToList();
 
-            // 7. Кэшируем результат
             await _redis.SetAsync(cacheKey, JsonSerializer.Serialize(postcodes), TimeSpan.FromHours(12));
 
             return postcodes;
         }
 
-
-
         public async Task<GeoapifyResult?> GetValidatedFullAddress(
-            string countryCode,
-            string regionCode,
-            string settlement,
-            string street,
-            int zipCode
+            string text
         )
         {
-            if (string.IsNullOrWhiteSpace(countryCode)
-                || string.IsNullOrWhiteSpace(regionCode)
-                || string.IsNullOrWhiteSpace(settlement)
-                || string.IsNullOrWhiteSpace(street))
+            if (string.IsNullOrWhiteSpace(text))
             {
-                throw new ArgumentException("One or more required parameters are empty");
+                throw new ArgumentException("Required parameters is empty");
             }
 
-            var countryCodeUpper = countryCode.ToUpperInvariant();
-
-            if (!GeoConstants.Countries.Any(c => c.Code.Equals(countryCodeUpper, StringComparison.OrdinalIgnoreCase)))
-                throw new ArgumentException($"Country code '{countryCodeUpper}' not found in constants");
-
-            if (!GeoConstants.RegionsByCountry.TryGetValue(countryCodeUpper, out var regions))
-                throw new ArgumentException($"No regions found for country '{countryCodeUpper}'");
-
-            var region = regions.FirstOrDefault(r => r.Code.Equals(regionCode, StringComparison.OrdinalIgnoreCase));
-            if (region == null)
-                throw new ArgumentException($"Region code '{regionCode}' not found for country '{countryCodeUpper}'");
-
-            var regionName = region.Name;
-
-            var addressText = $"{street}, {settlement}, {regionName}, {countryCode}, {zipCode}";
-
             var url = $"/v1/geocode/search" +
-                      $"?text={Uri.EscapeDataString(addressText)}" +
+                      $"?text={Uri.EscapeDataString(text)}" +
                       $"&format=json" +
+                      $"&type=amenity" +
                       $"&apiKey={_apiKey}";
 
             GeoapifyResponse? response;
@@ -317,19 +301,6 @@ namespace GeoService.Application.Services
 
             foreach (var r in response.Results)
             {
-                if (!string.Equals(r.CountryCode, countryCodeUpper, StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                if (!string.IsNullOrWhiteSpace(regionName) &&
-                    (string.IsNullOrWhiteSpace(r.State) ||
-                     r.State.IndexOf(regionName, StringComparison.OrdinalIgnoreCase) < 0))
-                    continue;
-
-                var placeName = r.City ?? r.Village ?? r.Town ?? r.Locality ?? r.Formatted ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(placeName) ||
-                    placeName.IndexOf(settlement, StringComparison.OrdinalIgnoreCase) < 0)
-                    continue;
-
                 var resultType = r.ResultType?.ToLowerInvariant() ?? "";
                 var confidence = r.Rank?.Confidence ?? 0.0;
                 var confidenceBuilding = r.Rank?.ConfidenceBuildingLevel ?? 0.0;
@@ -425,5 +396,10 @@ namespace GeoService.Application.Services
 
             throw new InvalidOperationException("No valid results passed verification checks");
         }
+
+        
+
+
+
     }
 }
