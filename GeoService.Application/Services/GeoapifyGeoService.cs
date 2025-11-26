@@ -59,7 +59,7 @@ namespace GeoService.Application.Services
 
 
             var url = $"/v1/geocode/autocomplete" +
-                      $"?text={Uri.EscapeDataString(settlement)}" +
+                      $"?text={Uri.EscapeDataString($"{settlement} {regionCode} {countryCode}")}" +
                       $"&type=city" +
                       $"&limit={limit * 3}" +
                       $"&filter=countrycode:{countryCodeUpper.ToLowerInvariant()}" +
@@ -110,8 +110,22 @@ namespace GeoService.Application.Services
 
             foreach (var s in rawSuggestions)
             {
-                var settlementTranslations = await _translateServiceClient.TranslateAsync(s.Settlement);
                 var displayNameTranslations = await _translateServiceClient.TranslateAsync(s.DisplayName);
+
+                // функция для извлечения только названия поселения
+                string ExtractSettlementName(string fullName)
+                {
+                    if (string.IsNullOrWhiteSpace(fullName))
+                        return string.Empty;
+
+                    var parts = fullName.Split(',');
+                    return parts[0].Trim();
+                }
+
+                var settlementTranslations = displayNameTranslations.ToDictionary(
+                    kvp => kvp.Key,                           
+                    kvp => ExtractSettlementName(kvp.Value)   
+                );
 
                 result.Add(new SettlementSuggestionDto
                 {
