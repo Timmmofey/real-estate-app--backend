@@ -1,3 +1,4 @@
+using Classified.Shared.Extensions;
 using Classified.Shared.Infrastructure.RedisService;
 using StackExchange.Redis;
 using TranslationService.Application.Services;
@@ -19,16 +20,9 @@ builder.Services.AddScoped<IRedisService, RedisService>();
 builder.Services.AddScoped<IGoogleTranslationService, GoogleTranslationService>();
 builder.Services.AddHttpClient<IGoogleTranslateClient, GoogleTranslateClient>();
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend", policy =>
-    {
-        policy.WithOrigins("http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
-});
+//Cors
+builder.Services.AddDefaultCors();
+
 
 var app = builder.Build();
 

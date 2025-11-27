@@ -4,12 +4,22 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using System.Reflection;
 using System.Text;
 
 namespace Classified.Shared.Extensions
 {
     public static class AuthenticationExtensions
     {
+
+        // Вычисляем все константы CookieNames один раз при старте
+        private static readonly string[] CookiesToCheck = typeof(CookieNames)
+            .GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
+            .Where(f => f.IsLiteral && !f.IsInitOnly)
+            .Select(f => f.GetRawConstantValue())
+            .OfType<string>()
+            .ToArray();
+
 
         public static IServiceCollection AddJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
         {
@@ -31,44 +41,29 @@ namespace Classified.Shared.Extensions
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!))
                 };
 
-                //options.Events = new JwtBearerEvents
-                //{
-                //    OnMessageReceived = context =>
-                //    {
-                //        if (context.Request.Cookies.TryGetValue("classified-auth-token", out var accessToken))
-                //        {
-                //            context.Token = accessToken;
-                //        }
-                //        else if (context.Request.Cookies.TryGetValue("classified-refresh-token", out var refreshToken))
-                //        {
-                //            context.Token = refreshToken;
-                //        }
-
-                //        return Task.CompletedTask;
-                //    }
-                //};
-
+                
                 options.Events = new JwtBearerEvents
                 {
                     OnMessageReceived = context =>
                     {
                         var handler = new JwtSecurityTokenHandler();
 
+                       
                         // Список кук, которые могут содержать JWT
-                        var cookiesToCheck = new[]
-                        {
-                            CookieNames.Auth,
-                            CookieNames.Refresh,
-                            CookieNames.Device,
-                            CookieNames.Restore,
-                            CookieNames.PasswordReset,
-                            CookieNames.RequestNewEmailCofirmation,
-                            CookieNames.EmailReset
-                        };
+                        //var cookiesToCheck = new[]
+                        //{
+                        //    CookieNames.Auth,
+                        //    CookieNames.Refresh,
+                        //    CookieNames.Device,
+                        //    CookieNames.Restore,
+                        //    CookieNames.PasswordReset,
+                        //    CookieNames.RequestNewEmailCofirmation,
+                        //    CookieNames.EmailReset
+                        //};
 
-                        foreach (var cookieName in cookiesToCheck)
+                        foreach (var cookieName in CookiesToCheck)
                         {
-                            if (context.Request.Cookies.TryGetValue(cookieName, out var token) &&
+                            if (context.Request.Cookies.TryGetValue(cookieName!, out var token) &&
                                 !string.IsNullOrEmpty(token))
                             {
                                 try

@@ -61,24 +61,8 @@ builder.Services.AddJwtAuthentication(configuration);
 builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect("localhost:6379"));
 builder.Services.AddScoped<IRedisService, RedisService>();
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend", policy =>
-    {
-        policy.WithOrigins("http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
-
-    options.AddPolicy("AllowAuthService", policy =>
-    {
-        policy.WithOrigins("http://localhost:5003")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
-});
+//Cors
+builder.Services.AddDefaultCors();
 
 var app = builder.Build();
 
@@ -104,7 +88,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
 
 
 

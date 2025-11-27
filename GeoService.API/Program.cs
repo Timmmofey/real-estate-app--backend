@@ -1,6 +1,8 @@
+using Classified.Shared.Extensions;
 using Classified.Shared.Infrastructure.RedisService;
 using GeoService.Application.Services;
 using GeoService.Domain.Abstractions;
+using GeoService.Infrastructure.TranslateService;
 using StackExchange.Redis;
 
 
@@ -30,8 +32,6 @@ builder.Services.AddHttpClient<IOpenCageGeoService, OpenCageGeoService>(client =
 {
     client.BaseAddress = new Uri("https://api.opencagedata.com/");
     client.DefaultRequestHeaders.Add("Accept", "application/json");
-    // не добавляем User-Agent — OpenCage не требует, но можно:
-    // client.DefaultRequestHeaders.Add("User-Agent", "ClassifiedGeoService/1.0");
 });
 
 builder.Services.AddHttpClient<IGeoapifyGeoService, GeoapifyGeoService>(client =>
@@ -40,6 +40,12 @@ builder.Services.AddHttpClient<IGeoapifyGeoService, GeoapifyGeoService>(client =
     client.DefaultRequestHeaders.Add("Accept", "application/json");
     client.DefaultRequestHeaders.Add("User-Agent", "GeoService/1.0"); // допустимо
 });
+
+builder.Services.AddHttpClient<ITranslateServiceClient, TranslateServiceClient>();
+
+//Cors
+builder.Services.AddDefaultCors();
+
 
 var app = builder.Build();
 
@@ -51,6 +57,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+
+app.UseAuthentication();
+
+app.UseAuthorization();
+
+app.UseCors("AllowFrontend");
 
 app.UseHttpsRedirection();
 
