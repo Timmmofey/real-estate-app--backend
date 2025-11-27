@@ -10,6 +10,9 @@
         string? Region,
         string? County,
         string? Settlement,
-        string? Postcode
+        string? Postcode,
+        Dictionary<string, string>? OtherSettlementNames = null,
+        Dictionary<string, string>? OtherDisplayNameNames = null
     );
+
 }

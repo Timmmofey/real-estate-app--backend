@@ -8,6 +8,13 @@ namespace Classified.Shared.DTOs
         public List<GeoapifyFeature>? Features { get; set; }
     }
 
+    //public class GeoapifySuggestionsDto
+    //{
+    //    // Некоторые ответные форматы используют "results", некоторые — "features"
+    //    [JsonPropertyName("results")]
+    //    public List<GeoapifyResult>? Results { get; set; }
+    //}
+
     public class GeoapifyFeature
     {
         [JsonPropertyName("geometry")]
@@ -65,6 +72,9 @@ namespace Classified.Shared.DTOs
 
         [JsonPropertyName("place_type")]
         public string? PlaceType { get; set; }
+
+        [JsonPropertyName("rank")]
+        public GeoapifyRank? Rank { get; set; }
     }
 
 
@@ -259,7 +269,5 @@ namespace Classified.Shared.DTOs
         [JsonPropertyName("expected_type")]
         public string ExpectedType { get; set; }
     }
-
-
 
 }

@@ -84,15 +84,16 @@ namespace GeoService.Application.Services
 
             var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "city", "town", "village", "hamlet", "locality"
+                "city", "town", "village", "hamlet", "locality", "postcode"
             };
 
             var rawSuggestions = response.Features
                 .Where(f => f.Properties != null)
+                .Where(f => f.Properties!.Rank != null && f.Properties!.Rank.ConfidenceCityLevel >= 0.9)
                 .Where(f =>
                 {
-                    var t = f.Properties!.Type ?? f.Properties!.PlaceType;
-                    return string.IsNullOrWhiteSpace(t) || allowedTypes.Contains(t);
+                    var t = f.Properties!.ResultType ?? f.Properties!.Type ?? f.Properties!.PlaceType;
+                    return !string.IsNullOrWhiteSpace(t) && allowedTypes.Contains(t);
                 })
                 .Select(f => new
                 {
@@ -123,8 +124,8 @@ namespace GeoService.Application.Services
                 }
 
                 var settlementTranslations = displayNameTranslations.ToDictionary(
-                    kvp => kvp.Key,                           
-                    kvp => ExtractSettlementName(kvp.Value)   
+                    kvp => kvp.Key,
+                    kvp => ExtractSettlementName(kvp.Value)
                 );
 
                 result.Add(new SettlementSuggestionDto
@@ -410,10 +411,5 @@ namespace GeoService.Application.Services
 
             throw new InvalidOperationException("No valid results passed verification checks");
         }
-
-        
-
-
-
     }
 }

@@ -31,7 +31,7 @@ namespace GeoService.Domain.Abstractions
 
     public interface IGeoapifyGeoService
     {
-        Task<IReadOnlyList<PlaceSuggestion>> GetSettlementSuggestionsAsync(
+        Task<IReadOnlyList<SettlementSuggestionDto>> GetSettlementSuggestionsAsync(
             string countryCode,
             string regionCode,
             string settlement
@@ -51,13 +51,18 @@ namespace GeoService.Domain.Abstractions
             string streetAndNumber
         );
 
+        //Task<GeoapifyResult?> GetValidatedFullAddress(
+        //   string countryCode,
+        //   string regionCode,
+        //   string settlement,
+        //   string street,
+        //   int zipCode
+        //);
+
         Task<GeoapifyResult?> GetValidatedFullAddress(
-           string countryCode,
-           string regionCode,
-           string settlement,
-           string street,
-           int zipCode
+            string text
         );
+
 
         Task<GeoapifyResult?> GetValidatedSettlement(
             string countryCode,
