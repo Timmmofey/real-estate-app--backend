@@ -70,9 +70,9 @@ namespace GeoService.API.Controllers
         }
 
         [HttpGet("verifyaddress")]
-        public async Task<IActionResult> VerifyAddress([FromQuery] string countryCode, [FromQuery] string regionCode, [FromQuery] string settlement, [FromQuery] string street, [FromQuery] int zipCocde)
+        public async Task<IActionResult> VerifyAddress([FromQuery] string text)
         {
-            var res = await _geoapifyGeoService.GetValidatedFullAddress(countryCode, regionCode, settlement, street, zipCocde);
+            var res = await _geoapifyGeoService.GetValidatedFullAddress(text);
             return Ok(res);
         }
 
