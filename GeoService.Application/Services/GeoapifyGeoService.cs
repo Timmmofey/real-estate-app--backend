@@ -330,8 +330,17 @@ namespace GeoService.Application.Services
             if (string.IsNullOrWhiteSpace(normalizedQuery)) return Array.Empty<SettlementSuggestionDto>();
 
             // keys templates
-            string aliasPrefix = $"geo:alias:{countryCodeUpper}:{regionName}:{limit}"; // aliasPrefix:{normalizedPrefix}
-            string baseCacheKeyTemplate = $"geo:settlements:{countryCodeUpper}:{regionName}:{limit}"; // append :{normalize(originalQuery)} when saving
+            // --- STABLE cache key part: нормализуем regionName, чтобы ключи были детерминированы ---
+            string regionKeyForCache = NormalizeForKey(regionName);
+            if (string.IsNullOrWhiteSpace(regionKeyForCache))
+            {
+                regionKeyForCache = region.Code?.ToUpperInvariant() ?? regionName;
+            }
+
+            // keys templates (use normalized region key)
+            string aliasPrefix = $"geo:alias:{countryCodeUpper}:{regionKeyForCache}:{limit}"; // aliasPrefix:{normalizedPrefix}
+            string baseCacheKeyTemplate = $"geo:settlements:{countryCodeUpper}:{regionKeyForCache}:{limit}"; // append :{normalize(originalQuery)} when saving
+
 
             // === 1) Try alias exact match and progressive fallback to shorter prefix ===
             List<string> baseKeys = null;
@@ -361,29 +370,52 @@ namespace GeoService.Application.Services
                 var baseJsons = await BatchGetAsync(distinctBaseKeys);
 
                 var allCandidates = new List<SettlementSuggestionDto>();
+                bool hasExplicitEmpty = false;
+
                 foreach (var bj in baseJsons)
                 {
+                    // явный пустой массив, ранее записанный в кэш -> считаем валидным результатом
+                    if (string.Equals(bj?.Trim(), "[]", StringComparison.Ordinal))
+                    {
+                        hasExplicitEmpty = true;
+                        continue;
+                    }
+
                     var arr = JsonSerializer.Deserialize<List<SettlementSuggestionDto>>(bj, _jsonOptions);
-                    if (arr != null) allCandidates.AddRange(arr);
+                    if (arr != null && arr.Count > 0)
+                        allCandidates.AddRange(arr);
                 }
 
                 var filtered = FilterAndDedup(allCandidates, normalizedQuery)
                     .Take(limit)
                     .ToList();
 
-                if (filtered.Count > 0) return filtered;
-                // else fall through to Geoapify (alias existed but filtering gave no matches)
+                if (filtered.Count > 0)
+                    return filtered;
+
+                // Если среди baseJsons был явный "[]" и мы не нашли ни одного кандидата — возвращаем пустой ответ
+                if (hasExplicitEmpty && allCandidates.Count == 0)
+                    return Array.Empty<SettlementSuggestionDto>();
+
+                // иначе — fallthrough к шагу 3 / Geoapify
             }
 
+
             // === 3) If no alias or alias gave no matches: fallback to local base key exact ===
-            var baseCacheKeyExact = $"{baseCacheKeyTemplate}:{NormalizeForKey(settlement)}";
+            var normalizedInput = NormalizeForKey(settlement);
+            var baseCacheKeyExact = $"{baseCacheKeyTemplate}:{normalizedInput}";
             var cachedBase = await _redis.GetAsync(baseCacheKeyExact);
             if (!string.IsNullOrWhiteSpace(cachedBase))
             {
+                // явный кэш пустого результата
+                if (string.Equals(cachedBase.Trim(), "[]", StringComparison.Ordinal))
+                    return Array.Empty<SettlementSuggestionDto>();
+
                 var baseList = JsonSerializer.Deserialize<List<SettlementSuggestionDto>>(cachedBase, _jsonOptions) ?? new List<SettlementSuggestionDto>();
                 var filtered = FilterAndDedup(baseList, normalizedQuery).Take(limit).ToList();
                 if (filtered.Count > 0) return filtered;
             }
+
 
             // === 4) Last resort: call Geoapify external API ===
             var url = $"/v1/geocode/autocomplete" +
@@ -400,6 +432,7 @@ namespace GeoService.Application.Services
             }
             catch (HttpRequestException)
             {
+                await _redis.SetAsync(baseCacheKeyExact, "[]", TimeSpan.FromHours(1));
                 return Array.Empty<SettlementSuggestionDto>();
             }
 
@@ -432,6 +465,12 @@ namespace GeoService.Application.Services
                             s.Region.Contains(regionName, StringComparison.OrdinalIgnoreCase))
                 .Take(limit)
                 .ToList();
+
+            if (rawSuggestions.Count == 0)
+            {
+                await _redis.SetAsync(baseCacheKeyExact, "[]", TimeSpan.FromHours(1));
+                return Array.Empty<SettlementSuggestionDto>();
+            }
 
             var result = new List<SettlementSuggestionDto>(rawSuggestions.Count);
             foreach (var s in rawSuggestions)
