@@ -22,5 +22,6 @@ namespace UserService.Persistance.PostgreSQL.Entities
 
         public PersonProfileEntity? PersonProfile { get; set; }
         public CompanyProfileEntity? CompanyProfile { get; set; }
+        public List<UserOAuthAccountEntity>? UserOAuthAccounts { get; set;  }
     }
 }

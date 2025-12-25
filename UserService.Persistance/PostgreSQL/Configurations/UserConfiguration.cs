@@ -14,11 +14,13 @@ namespace UserService.Persistance.PostgreSQL.Configurations
                 .WithOne(p => p.User)
                 .HasForeignKey<PersonProfileEntity>(p => p.UserId);
 
-
             builder.HasOne(u => u.CompanyProfile)
                 .WithOne(c => c.User)
                 .HasForeignKey<CompanyProfileEntity>(p => p.UserId);
-            ;
+
+            builder.HasMany(u => u.UserOAuthAccounts)
+                .WithOne(o => o.User)
+                .HasPrincipalKey(u => u.Id);
 
             builder.Property(u => u.Role)
                   .HasConversion<string>();

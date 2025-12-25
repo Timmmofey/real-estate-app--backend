@@ -150,6 +150,33 @@ namespace UserService.Persistance.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("UserService.Persistance.PostgreSQL.Entities.UserOAuthAccountEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OAuthProviderName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserOAuthAccounts");
+                });
+
             modelBuilder.Entity("UserService.Persistance.PostgreSQL.Entities.CompanyProfileEntity", b =>
                 {
                     b.HasOne("UserService.Persistance.PostgreSQL.Entities.UserEntity", "User")
@@ -172,11 +199,24 @@ namespace UserService.Persistance.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("UserService.Persistance.PostgreSQL.Entities.UserOAuthAccountEntity", b =>
+                {
+                    b.HasOne("UserService.Persistance.PostgreSQL.Entities.UserEntity", "User")
+                        .WithMany("UserOAuthAccounts")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("UserService.Persistance.PostgreSQL.Entities.UserEntity", b =>
                 {
                     b.Navigation("CompanyProfile");
 
                     b.Navigation("PersonProfile");
+
+                    b.Navigation("UserOAuthAccounts");
                 });
 #pragma warning restore 612, 618
         }

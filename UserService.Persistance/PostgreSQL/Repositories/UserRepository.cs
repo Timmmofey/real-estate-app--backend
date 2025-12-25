@@ -25,12 +25,12 @@ namespace UserService.Persistance.PostgreSQL.Repositories
                 return null;
             }
 
-            var (user, error) = User.Create(
+            var (user, error) = User.CreateExisting(
                userEntity.Id,
                userEntity.Email,
-               userEntity.PasswordHash,
                userEntity.PhoneNumber,
                (UserRole)userEntity.Role,
+               userEntity.PasswordHash,
                userEntity.IsTwoFactorEnabled,
                userEntity.IsVerified,
                userEntity.IsBlocked,
@@ -98,12 +98,12 @@ namespace UserService.Persistance.PostgreSQL.Repositories
                 return null;
             }
 
-            var (user, error) = User.Create(
+            var (user, error) = User.CreateExisting(
                 userEntity.Id,
                 userEntity.Email,
-                userEntity.PasswordHash,
                 userEntity.PhoneNumber,
                 (UserRole)userEntity.Role,
+                userEntity.PasswordHash,
                 userEntity.IsTwoFactorEnabled,
                 userEntity.IsVerified,
                 userEntity.IsBlocked,

@@ -7,23 +7,23 @@ namespace UserService.Domain.Models
     {
         public Guid Id { get; }
         public string Email { get; } = default!;
-        public string PasswordHash { get; } = default!;
         public string PhoneNumber { get; } = default!;
         public UserRole Role { get; }
 
-        public bool IsTwoFactorEnabled { get; set; } = false;
+        public bool IsTwoFactorEnabled { get; } = false;
         public bool IsVerified { get; } = false;
         public bool IsBlocked { get; } = false;
         public bool IsSoftDeleted { get; } = false;
         public bool IsPermanantlyDeleted { get; } = false;
 
+        public string? PasswordHash { get; }
         public DateTime CreatedAt { get; } = DateTime.UtcNow;
         public DateTime? DeletedAt { get; }
 
         public PersonProfile? PersonProfile { get; }
         public CompanyProfile? CompanyProfile { get; }
 
-        private User(Guid id, string email, string passwordHash, string phoneNumber, UserRole role)
+        private User(Guid id, string email, string phoneNumber, string? passwordHash, UserRole role)
         {
             Id = id;
             Email = email;
@@ -32,7 +32,7 @@ namespace UserService.Domain.Models
             Role = role;
         }
 
-        private User(Guid id, string email, string passwordHash, string phoneNumber, UserRole role, bool? isTwoFactorEnabled, bool? isVerified, bool? isBlocked, bool? isSoftDeleted, bool? isPermanantlyDeleted, DateTime? createdAt, DateTime? deletedAt)
+        private User(Guid id, string email, string phoneNumber, UserRole role, string? passwordHash, bool? isTwoFactorEnabled, bool? isVerified, bool? isBlocked, bool? isSoftDeleted, bool? isPermanantlyDeleted, DateTime? createdAt, DateTime? deletedAt)
         {
             Id = id;
             Email = email;
@@ -48,7 +48,7 @@ namespace UserService.Domain.Models
             DeletedAt = deletedAt;
         }
 
-        private static string? ValidateUserInputs(Guid id, string email, string passwordHash, string phoneNumber)
+        private static string? ValidateUserInputs(Guid id, string email, string phoneNumber)
         {
             if (id == Guid.Empty)
                 return "Id cannot be empty.";
@@ -59,9 +59,6 @@ namespace UserService.Domain.Models
             if (!Validators.IsValidEmail(email))
                 return "Email format is invalid.";
 
-            if (string.IsNullOrWhiteSpace(passwordHash))
-                return "Password hash cannot be empty.";
-
             if (string.IsNullOrWhiteSpace(phoneNumber))
                 return "Phone number cannot be empty.";
 
@@ -71,22 +68,22 @@ namespace UserService.Domain.Models
             return null;
         }
 
-        public static (User? User, string? Error) Create(Guid id, string email, string passwordHash, string phoneNumber, UserRole role)
+        public static (User? User, string? Error) CreateNew(Guid id, string email, string phoneNumber, string? passwordHash, UserRole role)
         {
-            var validationError = ValidateUserInputs(id, email, passwordHash, phoneNumber);
+            var validationError = ValidateUserInputs(id, email, phoneNumber);
             if (validationError != null)
                 return (null, validationError);
 
-            var user = new User(id, email, passwordHash, phoneNumber, role);
+            var user = new User(id, email, phoneNumber, passwordHash, role);
             return (user, null);
         }
 
-        public static (User? User, string? Error) Create(
+        public static (User? User, string? Error) CreateExisting(
             Guid id,
             string email,
-            string passwordHash,
             string phoneNumber,
             UserRole role,
+            string? passwordHash,
             bool? isTwoFactorEnabled,
             bool? isVerified,
             bool? isBlocked,
@@ -95,11 +92,11 @@ namespace UserService.Domain.Models
             DateTime? createdAt,
             DateTime? deletedAt)
         {
-            var validationError = ValidateUserInputs(id, email, passwordHash, phoneNumber);
+            var validationError = ValidateUserInputs(id, email, phoneNumber);
             if (validationError != null)
                 return (null, validationError);
 
-            var user = new User(id, email, passwordHash, phoneNumber, role, isTwoFactorEnabled, isVerified, isBlocked, isSoftDeleted, isPermanantlyDeleted, createdAt, deletedAt);
+            var user = new User(id, email, phoneNumber, role, passwordHash, isTwoFactorEnabled, isVerified, isBlocked, isSoftDeleted, isPermanantlyDeleted, createdAt, deletedAt);
             return (user, null);
         }
     }
