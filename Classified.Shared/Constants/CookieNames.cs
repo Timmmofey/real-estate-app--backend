@@ -10,5 +10,10 @@
         public const string RequestNewEmailCofirmation = "request-new-email-confirmation-token";
         public const string EmailReset = "classified-email-reset-token";
         public const string TwoFactorAuthentication = "classified-two-factor-authentication-token";
+        public const string OAuthRegistration = "classified-oauth-registration-token";
+        public const string OAuthState = "oauth_state";
+
+
+        
     }
 }

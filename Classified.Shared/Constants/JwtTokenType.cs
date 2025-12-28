@@ -9,7 +9,8 @@
         PasswordReset,
         RequestNewEmailCofirmation,
         EmailReset,
-        TwoFactorAuthentication
+        TwoFactorAuthentication,
+        OAuthRegistration
     }
 
 }

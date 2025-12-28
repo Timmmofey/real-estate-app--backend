@@ -1,4 +1,4 @@
-﻿namespace UserService.Domain.Exeptions
+﻿namespace UserService.Application.Exeptions
 {
     public class RecentlyDeletedUserExceptionOnLogin : Exception
     {

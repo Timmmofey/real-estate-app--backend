@@ -5,6 +5,9 @@ namespace UserService.Domain.Abstactions
     public interface IUserRepository
     {
         Task<User?> GetUserById(Guid userId);
+        Task AddUserAsync(User user);
+        Task AddPersonProfileAsync(PersonProfile profile);
+        Task AddCompanyProfileAsync(CompanyProfile profile);
         Task AddPersonUserAsync(User user, PersonProfile profile);
         Task AddCompanyUserAsync(User user, CompanyProfile profile);
         Task<User?> FindUserByEmailOrPhoneAsync(string? email, string? phoneNumber);

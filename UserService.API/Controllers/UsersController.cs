@@ -7,11 +7,11 @@ using UserService.Application.DTOs;
 using UserService.Application.Abstactions;
 using Classified.Shared.Functions;
 using Classified.Shared.Filters;
-using Microsoft.AspNetCore.Cors;
 using Classified.Shared.DTOs;
-using UserService.Domain.Exeptions;
+using UserService.Application.Exeptions;
 using Microsoft.Extensions.Localization;
 using UserService.API.Resources;
+using UserService.Application.Services;
 
 namespace UserService.API.Controllers
 {
@@ -20,13 +20,15 @@ namespace UserService.API.Controllers
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly IUserOAuthAccountSevice _userOAuthAccountSevice;
         private readonly IStringLocalizer<Messages> _localizer;
 
 
-        public UsersController(IUserService userService, IStringLocalizer<Messages> localizer)
+        public UsersController(IUserService userService, IStringLocalizer<Messages> localizer, IUserOAuthAccountSevice userOAuthAccountSevice)
         {
             _userService = userService;
             _localizer = localizer;
+            _userOAuthAccountSevice = userOAuthAccountSevice;
         }
 
         [HttpPost("add-person-user")]
@@ -48,12 +50,8 @@ namespace UserService.API.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(new { Message = ex.Message }); // fallback
+                return BadRequest(new { Message = ex.Message });
             }
-            //catch (InvalidOperationException e)
-            //{
-            //    return NotFound(e.Message);
-            //}
         }
 
         [HttpPost("add-company-user")]
@@ -69,6 +67,103 @@ namespace UserService.API.Controllers
             {
                 return NotFound(e.Message);
             }
+        }
+
+        [AuthorizeToken(JwtTokenType.OAuthRegistration)]
+        [HttpPost("complete-oauth-registration")]
+        public async Task<IActionResult> CompleteOAuthRegistration([FromForm] CompleteOAuthRegistrationDto dto)
+        {
+            if (!Request.Cookies.TryGetValue(CookieNames.OAuthRegistration, out var tokenHeader))
+            {
+                return Unauthorized("Missing device token.");
+            }
+
+
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(tokenHeader.ToString());
+
+
+            var email = jwt.Claims.First(c => c.Type == "email").Value;
+            var providerUserId = jwt.Claims.First(c => c.Type == "providerUserId").Value;
+            var provider = jwt.Claims.First(c => c.Type == "provider").Value;
+
+            if (!Enum.TryParse<OAuthProvider>(provider, ignoreCase: true, out var oauthProviderName))
+            {
+                throw new ArgumentException($"uknown OAuth provider: {provider}");
+            }
+
+            if (!Enum.TryParse<UserRole>(dto.UserRole, ignoreCase: true, out var userRole))
+            {
+                throw new ArgumentException($"uknown UserRole provider: {dto.UserRole}");
+            }
+
+            try
+            {
+                if (userRole == UserRole.Person)
+                {
+                    var personDto = new CreatePersonUserOAuthDto
+                    {
+                        Email = email,
+                        PhoneNumber = dto.PhoneNumber,
+                        ProviderUserId = providerUserId,
+                        Provider = oauthProviderName,
+                        MainPhoto = dto.MainPhoto,
+                        FirstName = dto.FirstName!,
+                        LastName = dto.LastName!,
+                        Country = dto.Country,
+                        Region = dto.Region,
+                        Settlement = dto.Settlement,
+                        ZipCode = dto.ZipCode,
+                        Password = dto.Password
+                    };
+
+                    await _userService.CreatePersonUserFromOAuthAsync(personDto);
+                }
+                else
+                {
+                    var companyDto = new CreateCompanyUserOAuthDto
+                    {
+                        Email = email,
+                        PhoneNumber = dto.PhoneNumber,
+                        ProviderUserId = providerUserId,
+                        Provider = oauthProviderName,
+                        MainPhoto = dto?.MainPhoto,
+                        Name = dto!.Name!,
+                        RegistrationAdress = dto.RegistrationAdress!,
+                        СompanyRegistrationNumber = dto.СompanyRegistrationNumber!,
+                        Country = dto.Country!,
+                        Region = dto.Region!,
+                        Settlement = dto.Settlement!,
+                        ZipCode = dto.ZipCode!,
+                        Password = dto.Password
+                    };
+
+                    await _userService.CreateCompanyUserFromOAuthAsync(companyDto);
+                }
+            }
+            catch (UserAlreadyExistsException)
+            {
+                return Conflict(new { Message = _localizer["UserAlreadyExists"] });
+            }
+            catch (RecentlyDeletedUserExceptionOnCreating)
+            {
+                return Conflict(new { Message = _localizer["RecentlyDeletedUser"] });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+
+            CookieHepler.DeleteCookie(Response, CookieNames.OAuthState);
+            return Ok();
+        }
+
+        [HttpGet("get-user-id-by-email-async")]
+        public async Task<Guid?> GetUserIdByEmailAsync(string email)
+        {
+            var result = await _userService.GetUserIdByEmailAsync(email);
+
+            return result;
         }
 
         //[EnableCors("AllowAuthService")]
@@ -243,6 +338,7 @@ namespace UserService.API.Controllers
             }
         }
 
+
         [AuthorizeToken(JwtTokenType.Access)]
         [HttpPost("request-toggle-two-factor-authentication-code")]
         public async Task<IActionResult> RequestToggleTwoFactorAuthenticationCode()
@@ -356,11 +452,19 @@ namespace UserService.API.Controllers
         }
 
         [HttpGet("get-user-role-by-id")]
-        public async Task<UserRole?> GetUserById(string userId)
+        public async Task<UserRole?> GetUserRoleById(string userId)
         {
             var user =  await _userService.GetUserById(Guid.Parse(userId));
 
             return user?.Role;
+        }
+
+        [HttpGet("get-verified-user-dto-by-id")]
+        public async Task<VerifiedUserDto?> GetVerifiedUserDtoById(string userId)
+        {
+            var user = await _userService.GetVerifiedUserDtoById(Guid.Parse(userId));
+
+            return user;
         }
 
         /// <summary>
@@ -537,7 +641,32 @@ namespace UserService.API.Controllers
             }
         }
 
+        /// <summary>
+        /// /////// OAuth
+        /// </summary> 
+        /// 
+        [HttpGet("get-user-o-auth-account-by-provider-and-provider-user-id-async")]
+        public async Task<ActionResult<UserOAuthAccountDto>> GetUserOAuthAccountByProviderAndProviderUserIdAsync(
+            string providerName,
+            string providerUserId)
+        {
+            if (!Enum.TryParse<OAuthProvider>(providerName, true, out var provider))
+            {
+                return BadRequest("Unknown OAuth provider");
+            }
+
+            var result = await _userOAuthAccountSevice
+                .GetUserOAuthAccountByProviderAndProviderUserId(provider, providerUserId);
+
+            if (result == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(result);
+        }
+
     }
 
-    
+
 }

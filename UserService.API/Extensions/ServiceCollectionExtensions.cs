@@ -1,4 +1,5 @@
 ﻿using UserService.Application.Abstactions;
+using UserService.Application.Services;
 
 namespace UserService.API.Extensions
 {
@@ -7,6 +8,8 @@ namespace UserService.API.Extensions
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
             services.AddScoped<IUserService, UserService.Application.Services.UserService>();
+            services.AddScoped<IUserOAuthAccountSevice, UserOAuthAccountSevice>();
+
             return services;
         }
     }

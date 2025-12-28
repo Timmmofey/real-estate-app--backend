@@ -29,6 +29,7 @@ namespace Classified.Shared.Filters
                 JwtTokenType.RequestNewEmailCofirmation => CookieNames.RequestNewEmailCofirmation,
                 JwtTokenType.EmailReset => CookieNames.EmailReset,
                 JwtTokenType.TwoFactorAuthentication => CookieNames.TwoFactorAuthentication,
+                JwtTokenType.OAuthRegistration => CookieNames.OAuthRegistration,
                 _ => throw new ArgumentOutOfRangeException()
             };
 

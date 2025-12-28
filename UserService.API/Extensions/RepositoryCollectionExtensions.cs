@@ -1,4 +1,5 @@
 ﻿using UserService.Domain.Abstactions;
+using UserService.Persistance.PostgreSQL;
 using UserService.Persistance.PostgreSQL.Repositories;
 
 namespace UserService.API.Extensions
@@ -8,7 +9,11 @@ namespace UserService.API.Extensions
         public static IServiceCollection AddApplicationRepositories(this IServiceCollection services)
         {
             services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<IUserOAuthAccountRepository, UserOAuthAccountRepository>();
+            services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+
             return services;
         }
+
     }
 }

@@ -1,12 +1,19 @@
-﻿using AuthService.Domain.Abstactions;
+﻿using AuthService.API.Resources;
+using AuthService.Application.Exceptions;
+using AuthService.Domain.Abstactions;
 using AuthService.Domain.DTOs;
 using Classified.Shared.Constants;
 using Classified.Shared.Filters;
 using Classified.Shared.Functions;
+using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Localization;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Classified.Shared.DTOs;
 
 namespace AuthService.API.Controllers
 {
@@ -16,11 +23,18 @@ namespace AuthService.API.Controllers
     {
         private readonly IAuthService _authService;
         private readonly IJwtProvider _jwtProvider;
+        private readonly IStringLocalizer<Messages> _localizer;
+        private readonly IConfiguration _config;
+        private readonly IUserServiceClient _userServiceClient;
 
-        public AuthController(IAuthService authService, IJwtProvider jwtProvider)
+
+        public AuthController(IAuthService authService, IJwtProvider jwtProvider, IStringLocalizer<Messages> localizer, IConfiguration config, IUserServiceClient userServiceClient)
         {
             _authService = authService;
             _jwtProvider = jwtProvider;
+            _localizer = localizer;
+            _config = config;
+            _userServiceClient = userServiceClient;
         }
 
         [AllowAnonymous]
@@ -29,32 +43,7 @@ namespace AuthService.API.Controllers
         {
             try
             {
-                Guid deviceId = Guid.NewGuid();
-
-                var handler = new JwtSecurityTokenHandler();
-
-         
-                if (!Request.Cookies.TryGetValue(CookieNames.Device, out var deviceToken) || string.IsNullOrEmpty(deviceToken))
-                {
-                    var deviceJwt = _jwtProvider.GenerateDeviceToken(deviceId);
-
-                    CookieHepler.SetCookie(Response, CookieNames.Device, deviceJwt, days: 150);
-                }
-                else
-                {
-                    var token = handler.ReadJwtToken(deviceToken);
-                    var deviceTokenClaim = token.Claims.FirstOrDefault(c => c.Type == "deviceId")?.Value;
-                    
-
-                    if (!Guid.TryParse(deviceTokenClaim, out deviceId))
-                    {
-                        deviceId = Guid.NewGuid(); 
-                    }
-                    var deviceJwt = _jwtProvider.GenerateDeviceToken(deviceId);
-
-                    CookieHepler.SetCookie(Response, CookieNames.Device, deviceJwt, days: 150);
-                }
-
+                var deviceId = GetOrCreateDeviceId();
 
                 var (tokens, restoreToken, twoFactorAuthenticatinToken) = await _authService.LoginAsync(dto.PhoneOrEmail, dto.Password, deviceId);
 
@@ -76,6 +65,14 @@ namespace AuthService.API.Controllers
                 CookieHepler.SetCookie(Response, CookieNames.Refresh, tokens.RefreshToken, days: 150);
 
                 return Ok();
+            }
+            catch (BlockedUserAccountException)
+            {
+                return Conflict(new { Message = _localizer["BlockedUserAccountException"] });
+            }
+            catch (InvalidСredentialsException)
+            {
+                return Conflict(new { Message = _localizer["InvalidСredentialsException"] });
             }
             catch (Exception ex)
             {
@@ -116,6 +113,101 @@ namespace AuthService.API.Controllers
             }
 
         }
+
+        [HttpGet("google")]
+        public IActionResult GoogleLogin()
+        {
+            return Challenge(
+                new AuthenticationProperties
+                {
+                    RedirectUri = "/api/auth/google-callback"
+                },
+                GoogleDefaults.AuthenticationScheme
+            );
+        }
+
+        [AllowAnonymous]
+        [HttpGet("google-callback")]
+        public async Task<IActionResult> GoogleCallback()
+        {
+            // 1. Получаем результат внешней аутентификации
+            var authResult = await HttpContext.AuthenticateAsync(GoogleDefaults.AuthenticationScheme);
+            if (!authResult.Succeeded || authResult.Principal == null)
+                return BadRequest("External authentication failed");
+
+            // 2. Считываем нужные claims
+            var claims = authResult.Principal.Claims.ToDictionary(c => c.Type, c => c.Value);
+            string providerUserId = claims.ContainsKey("sub") ? claims["sub"] : (claims.GetValueOrDefault(ClaimTypes.NameIdentifier) ?? "");
+            string? email = claims.GetValueOrDefault(ClaimTypes.Email) ?? claims.GetValueOrDefault("email");
+            string? picture = claims.GetValueOrDefault("picture");
+            string? firstName = claims.GetValueOrDefault(ClaimTypes.GivenName);
+            string? lastName = claims.GetValueOrDefault(ClaimTypes.Surname);
+
+
+
+            var frontendBaseUrl = _config["Frontend:BaseUrl"] ?? "http://localhost:3000";
+            var provider = OAuthProvider.Google;
+
+            // 3. Если уже есть запись UserOAuthAccount (provider+providerUserId) => логиним
+            var existingOAuthAccount = await _userServiceClient.GetUserOAuthAccountByProviderAndProviderUserIdAsync(provider, providerUserId);
+            if (existingOAuthAccount != null)
+            {
+                // имеем userId
+                var userId = existingOAuthAccount.UserId;
+
+                // создаём/получаем deviceId
+                var deviceId = GetOrCreateDeviceId();
+
+                // вызываем метод аутентификации через AuthService для OAuth-пользователя
+                // Возвращаем (tokens, restoreToken, twoFactorToken) по аналогии с LoginAsync
+                //(TokenResponseDto? tokens, string? restoreToken, string? twoFactorAuthToken) = await _authService.LoginWithOAuthAsync(userId, deviceId);
+
+                var (tokens, restoreToken, twoFactorAuthenticatinToken) = await _authService.LoginWithOAuthAsync(userId, deviceId);
+
+
+                if (restoreToken != null)
+                {
+                    CookieHepler.SetCookie(Response, CookieNames.Restore, restoreToken, minutes: 5);
+                    return Redirect($"{frontendBaseUrl}/restoreaccount");
+                }
+
+                if (twoFactorAuthenticatinToken != null)
+                {
+                    CookieHepler.SetCookie(Response, CookieNames.TwoFactorAuthentication, twoFactorAuthenticatinToken, minutes: 5);
+                    return Redirect($"{frontendBaseUrl}/twofactorauth");
+                }
+
+                CookieHepler.SetCookie(Response, CookieNames.Auth, tokens!.AccessToken, minutes: 10);
+                CookieHepler.SetCookie(Response, CookieNames.Refresh, tokens.RefreshToken, days: 150);
+
+
+                return Redirect(frontendBaseUrl);
+            }
+
+            // 4. Нет привязки по provider+id — проверяем, есть ли пользователь с таким email
+            if (!string.IsNullOrEmpty(email))
+            {
+                var existingUserId = await _authService.GetUserIdByEmailAsync(email);
+                if (!string.IsNullOrWhiteSpace(existingUserId))
+                {
+                    // email занят — просим пользователя войти и привязать внешний провайдер вручную
+                    // редиректим на фронт, который покажет инструкцию "Войдите в аккаунт, затем привяжите Google"
+                    var redirect = $"{frontendBaseUrl}/oauth/link?email={Uri.EscapeDataString(email)}&provider={Uri.EscapeDataString(provider.ToString())}";
+                    return Redirect(redirect);
+                }
+            }
+
+            // 5. Нет пользователя — генерируем registration token и отправляем на страницу дорегистрации
+            // Токен нужен чтобы фронтенд корректно предзаполнил форму регистрации и затем вызвал CreateFromOAuth
+            var registrationToken = _jwtProvider.GenerateRegistrationToken(email ?? "", provider.ToString(), providerUserId, picture);
+
+            // можно передать токен через query или через cookie
+            // передаём в query + ставим куку на 10 минут для безопасности (или поменяйте на вашу логику)
+            CookieHepler.SetCookie(Response, CookieNames.OAuthRegistration, registrationToken, minutes: 10);
+            var registerRedirect = $"{frontendBaseUrl}/signup" +$"?oauth={Uri.EscapeDataString(email ?? "")}";
+            return Redirect(registerRedirect);
+        }
+
 
         [AuthorizeToken(JwtTokenType.Refresh)]
         [HttpPost("Refresh")]
@@ -292,6 +384,36 @@ namespace AuthService.API.Controllers
             {
                 return Unauthorized("Device token is malformed.");
             }
+        }
+
+        private Guid GetOrCreateDeviceId()
+        {
+            var handler = new JwtSecurityTokenHandler();
+
+            Guid deviceId = Guid.NewGuid();
+
+            if (!Request.Cookies.TryGetValue(CookieNames.Device, out var deviceToken) || string.IsNullOrEmpty(deviceToken))
+            {
+                var deviceJwt = _jwtProvider.GenerateDeviceToken(deviceId);
+
+                CookieHepler.SetCookie(Response, CookieNames.Device, deviceJwt, days: 150);
+            }
+            else
+            {
+                var token = handler.ReadJwtToken(deviceToken);
+                var deviceTokenClaim = token.Claims.FirstOrDefault(c => c.Type == "deviceId")?.Value;
+
+
+                if (!Guid.TryParse(deviceTokenClaim, out deviceId))
+                {
+                    deviceId = Guid.NewGuid();
+                }
+                var deviceJwt = _jwtProvider.GenerateDeviceToken(deviceId);
+
+                CookieHepler.SetCookie(Response, CookieNames.Device, deviceJwt, days: 150);
+            }
+
+            return deviceId;
         }
 
     }

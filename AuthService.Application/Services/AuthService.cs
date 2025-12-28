@@ -1,4 +1,5 @@
-﻿using AuthService.Domain.Abstactions;
+﻿using AuthService.Application.Exceptions;
+using AuthService.Domain.Abstactions;
 using AuthService.Domain.DTOs;
 using AuthService.Domain.Models;
 using Classified.Shared.Constants;
@@ -36,12 +37,17 @@ namespace AuthService.Application.Services
             var user = await _userServiceClient.VerifyUserCredentialsAsync(phoneOrEmail, password);
 
             if (user == null)
-                throw new UnauthorizedAccessException("Invalid credentials");
+                throw new InvalidСredentialsException();
 
             if (user.IsDeleted == true)
             {
                 var restoreToken = _jwtProvider.GenerateRestoreToken(user.Id);
                 return (null, restoreToken, null);
+            }
+
+            if (user.IsBlocked == true)
+            {
+                throw new BlockedUserAccountException();
             }
 
             if (user.IsTwoFactorEnabled == true)
@@ -78,6 +84,82 @@ namespace AuthService.Application.Services
             var tokens = await GenerateTokensAfterLogin(user.Id, user.Role, deviceId);
 
             return (tokens, null, null);
+        }
+
+        public async Task<(
+            TokenResponseDto? tokens,
+            string? restoreToken,
+            string? twoFactorAuthToken
+        )> LoginWithOAuthAsync(Guid userId, Guid deviceId)
+        {
+            // 1. Получаем пользователя
+            var user = await _userServiceClient.GetVerifiedUserDtoByIdAsync(userId.ToString());
+
+            if (user == null)
+                throw new InvalidСredentialsException();
+
+            // 2. Аккаунт soft-deleted → restore flow
+            if (user.IsDeleted == true)
+            {
+                var restoreToken = _jwtProvider.GenerateRestoreToken(user.Id);
+                return (null, restoreToken, null);
+            }
+
+            // 3. Заблокирован
+            if (user.IsBlocked == true)
+            {
+                throw new BlockedUserAccountException();
+            }
+
+            // 4. Two-Factor Authentication
+            if (user.IsTwoFactorEnabled == true)
+            {
+                var code = Guid.NewGuid()
+                    .ToString()
+                    .Substring(0, 11)
+                    .Replace("-", "")
+                    .ToUpper();
+
+                var twoFactorAuthenticationToken =
+                    _jwtProvider.GenerateTwoFactorAuthToken(user.Id);
+
+                var redisData = new
+                {
+                    Code = code,
+                    UserRole = user.Role
+                };
+
+                try
+                {
+                    await _redisService.SetAsync(
+                        key: $"two-factor-auth:{user.Id}",
+                        value: System.Text.Json.JsonSerializer.Serialize(redisData),
+                        expiration: TimeSpan.FromMinutes(5)
+                    );
+
+                    await _emailService.SendEmail(
+                        user.Email,
+                        "Two factor authentication code",
+                        code
+                    );
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Two-factor auth error: {ex.Message}");
+                }
+
+                return (null, null, twoFactorAuthenticationToken);
+            }
+
+            // 5. Обычный успешный логин
+            var tokens = await GenerateTokensAfterLogin(user.Id, user.Role, deviceId);
+
+            return (tokens, null, null);
+        }
+
+        public async Task<string?> GetUserIdByEmailAsync(string email)
+        {
+            return await _userServiceClient.GetUserIdByEmailAsync(email);
         }
 
         public async Task<TokenResponseDto?> LoginViaTWoFactorAuthentication(string userId, string deviceId, string code)

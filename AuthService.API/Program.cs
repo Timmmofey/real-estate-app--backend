@@ -13,6 +13,8 @@ using AuthService.Application;
 using Classified.Shared.Infrastructure.RedisService;
 using StackExchange.Redis;
 using Classified.Shared.Infrastructure.EmailService;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +26,7 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
 builder.Services.AddHostedService<KafkaConsumer>();
 
 
@@ -52,32 +55,56 @@ builder.Services.AddScoped<IRefreshTokenRepository, SessionRepository>();
 builder.Services.AddValidatorsFromAssembly(typeof(AssemblyMarker).Assembly);
 builder.Services.AddFluentValidationAutoValidation();
 
+//Localization
+builder.Services.AddAppLocalization();
 
+//Redis
 builder.Services.AddScoped<IRedisService, RedisService>();
 builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect("localhost:6379"));
 
+//Email service
 builder.Services.AddEmailService(configuration);
 
+//JwtAuth
 builder.Services.AddJwtAuthentication(configuration);
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend", policy =>
+//Cors
+builder.Services.AddDefaultCors();
+
+builder.Services
+    .AddAuthentication(options =>
     {
-        policy.WithOrigins("http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
+    })
+    .AddCookie()
+    .AddGoogle(options =>
+    {
+        options.ClientId = configuration["Google:ClientId"];
+        options.ClientSecret = configuration["Google:ClientSecret"];
+
+        options.Scope.Add("profile");
+        options.Scope.Add("email");
+
+        options.SaveTokens = true;
+
+        options.Events.OnCreatingTicket = ctx =>
+        {
+            // тут можно логировать или добавлять кастомные claim’ы
+            return Task.CompletedTask;
+        };
+
+        options.Events.OnRedirectToAuthorizationEndpoint = context =>
+        {
+            var redirectUri = context.RedirectUri;
+
+            // добавляем prompt=select_account
+            redirectUri += "&prompt=select_account";
+            context.Response.Redirect(redirectUri);
+            return Task.CompletedTask;
+        };
     });
 
-    options.AddPolicy("AllowUserService", policy =>
-    {
-        policy.WithOrigins("http://localhost:5120")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
-});
 
 var app = builder.Build();
 
@@ -92,6 +119,10 @@ if (app.Environment.IsDevelopment())
 
 // Добавляем мидлвар для глобальной обработки ошибок
 //app.UseMiddleware<GlobalExceptionMiddleware>();
+
+app.UseAppLocalization();
+
+
 
 app.UseHttpsRedirection();
 

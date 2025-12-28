@@ -38,9 +38,35 @@ namespace UserService.Persistance.PostgreSQL.Repositories
                userEntity.IsPermanantlyDeleted,
                userEntity.CreatedAt,
                userEntity.DeletedAt
-           );
+            );
 
             return user;
+        }
+
+        public async Task AddUserAsync(User user)
+        {
+            if (user == null) throw new ArgumentNullException(nameof(user));
+
+            var userEntity = MapToUserEntity(user);
+            await _context.Users.AddAsync(userEntity);
+            // Не делаем SaveChangesAsync и не открываем транзакцию
+        }
+
+        public async Task AddPersonProfileAsync(PersonProfile profile)
+        {
+            if (profile == null) throw new ArgumentNullException(nameof(profile));
+
+            var profileEntity = MapToEntity(profile);
+            await _context.Set<PersonProfileEntity>().AddAsync(profileEntity);
+        }
+
+        public async Task AddCompanyProfileAsync(CompanyProfile profile)
+        {
+            if (profile == null) throw new ArgumentNullException(nameof(profile));
+
+            var profileEntity = MapToEntity(profile);
+
+            await _context.Set<CompanyProfileEntity>().AddAsync(profileEntity);
         }
 
         public async Task AddPersonUserAsync(User user, PersonProfile profile)
@@ -49,17 +75,7 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             var userEntity = MapToUserEntity(user);
 
 
-            var profileEntity = new PersonProfileEntity
-            {
-                UserId = profile.UserId,
-                FirstName = profile.FirstName,
-                LastName = profile.LastName,
-                MainPhotoUrl = profile.MainPhotoUrl,
-                Country = profile.Country,
-                Region = profile.Region,
-                Settlement = profile.Settlement,
-                ZipCode = profile.ZipCode,
-            };
+            var profileEntity = MapToEntity(profile);
 
             await AddUserWithProfileAsync(userEntity, profileEntity);
         }
@@ -69,20 +85,7 @@ namespace UserService.Persistance.PostgreSQL.Repositories
 
             var userEntity = MapToUserEntity(user);
 
-            var profileEntity = new CompanyProfileEntity
-            {
-                UserId = profile.UserId,
-                Name = profile.Name,
-                Country = profile.Country,
-                Region = profile.Region,
-                Settlement = profile.Settlement,
-                ZipCode = profile.ZipCode,
-                RegistrationAdress = profile.RegistrationAdress,
-                СompanyRegistrationNumber = profile.СompanyRegistrationNumber,
-                EstimatedAt = profile.EstimatedAt,
-                MainPhotoUrl = profile.MainPhotoUrl,
-                Description = profile.Description
-            };
+            var profileEntity = MapToEntity(profile);
 
             await AddUserWithProfileAsync(userEntity, profileEntity);
         }
@@ -213,7 +216,6 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             _context.PersonProfiles.Update(profile);
             await _context.SaveChangesAsync();
         }
-
 
         public async Task PatchCompanyProfileAsync
         (
@@ -351,7 +353,7 @@ namespace UserService.Persistance.PostgreSQL.Repositories
 
         public async Task<Guid?> GetUserIdByEmailAsync(string email)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email && u.IsSoftDeleted == false);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email.Trim() && u.IsSoftDeleted == false);
 
             return user?.Id;
         }
@@ -444,6 +446,101 @@ namespace UserService.Persistance.PostgreSQL.Repositories
                 await transaction.DisposeAsync();
             }
         }
+
+        private PersonProfileEntity MapToEntity(PersonProfile profile)
+        {
+            if (profile == null) throw new ArgumentNullException(nameof(profile));
+
+            // Применяем каскадную нормализацию адреса
+            var country = NormalizeAddressField(profile.Country);
+            var region = NormalizeAddressField(profile.Region);
+            var settlement = NormalizeAddressField(profile.Settlement);
+            var zipCode = NormalizeAddressField(profile.ZipCode);
+
+            ApplyAddressCascade(ref country, ref region, ref settlement, ref zipCode);
+
+            return new PersonProfileEntity
+            {
+                UserId = profile.UserId,
+                FirstName = profile.FirstName,
+                LastName = profile.LastName,
+                MainPhotoUrl = profile.MainPhotoUrl,
+                Country = country,
+                Region = region,
+                Settlement = settlement,
+                ZipCode = zipCode,
+            };
+        }
+
+        private CompanyProfileEntity MapToEntity(CompanyProfile profile)
+        {
+            if (profile == null) throw new ArgumentNullException(nameof(profile));
+
+            // Применяем каскадную нормализацию адреса
+            var country = NormalizeAddressField(profile.Country);
+            var region = NormalizeAddressField(profile.Region);
+            var settlement = NormalizeAddressField(profile.Settlement);
+            var zipCode = NormalizeAddressField(profile.ZipCode);
+
+            ApplyAddressCascade(ref country, ref region, ref settlement, ref zipCode);
+
+            return new CompanyProfileEntity
+            {
+                UserId = profile.UserId,
+                Name = profile.Name,
+                Country = country,
+                Region = region,
+                Settlement = settlement,
+                ZipCode = zipCode,
+                RegistrationAdress = profile.RegistrationAdress,
+                СompanyRegistrationNumber = profile.СompanyRegistrationNumber,
+                EstimatedAt = profile.EstimatedAt,
+                MainPhotoUrl = profile.MainPhotoUrl,
+                Description = profile.Description
+            };
+        }
+
+        private static string? NormalizeAddressField(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+            var trimmed = value.Trim();
+            if (trimmed.Equals("__DELETE__", StringComparison.OrdinalIgnoreCase)) return null;
+            if (trimmed.Equals("none", StringComparison.OrdinalIgnoreCase)) return null;
+            return trimmed;
+        }
+
+        private static void ApplyAddressCascade(
+             ref string? country,
+             ref string? region,
+             ref string? settlement,
+             ref string? zipCode)
+        {
+            country = NormalizeAddressField(country);
+            if (country == null)
+            {
+                region = null;
+                settlement = null;
+                zipCode = null;
+                return;
+            }
+
+            region = NormalizeAddressField(region);
+            if (region == null)
+            {
+                settlement = null;
+                zipCode = null;
+                return;
+            }
+
+            settlement = NormalizeAddressField(settlement);
+            if (settlement == null)
+            {
+                zipCode = null;
+            }
+
+            zipCode = NormalizeAddressField(zipCode);
+        }
+
 
     }
 }

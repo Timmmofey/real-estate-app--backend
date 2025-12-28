@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\GeoService.Application\GeoService.Application.csproj" />
+    <ProjectReference Include="..\GeoService.Infrastructure\GeoService.Infrastructure.csproj" />
     <ProjectReference Include="..\GeoService.Infrastrucuture\GeoService.Domain.csproj" />
   </ItemGroup>
 

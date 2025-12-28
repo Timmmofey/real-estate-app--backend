@@ -7,7 +7,7 @@ namespace UserService.Persistance.PostgreSQL.Entities
     {
         public Guid Id { get; set; }
         public string Email { get; set; } = default!;
-        public string PasswordHash { get; set; } = default!;
+        public string? PasswordHash { get; set; }
         public string PhoneNumber { get; set; } = default!;
         public UserRoleEntity Role { get; set; }
 

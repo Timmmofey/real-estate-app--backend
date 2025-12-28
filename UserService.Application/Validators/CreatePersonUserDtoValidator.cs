@@ -6,8 +6,8 @@ public class CreatePersonUserDtoValidator : AbstractValidator<CreatePersonUserDt
     public CreatePersonUserDtoValidator()
     {
         RuleFor(x => x.Email)
-            .NotEmpty().WithMessage("Email is required.")
-            .EmailAddress().WithMessage("Invalid email format.");
+           .NotEmpty().WithMessage("Email is required.")
+           .EmailAddress().WithMessage("Invalid email format.");
 
         RuleFor(x => x.Password)
             .NotEmpty().WithMessage("Password hash is required.");

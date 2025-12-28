@@ -13,4 +13,5 @@ namespace UserService.Application.DTOs
         public IFormFile? MainPhoto { get; set; }
         public bool? DeleteMainPhoto { get; set; }
     }
+        
 }

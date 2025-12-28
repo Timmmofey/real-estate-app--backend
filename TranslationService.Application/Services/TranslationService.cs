@@ -1,4 +1,5 @@
 ﻿using Classified.Shared.Constants;
+using Classified.Shared.DTOs;
 using Classified.Shared.Infrastructure.RedisService;
 using TranslationService.Domain.Abstractions;
 using TranslationService.Domain.Models;
@@ -36,12 +37,12 @@ namespace TranslationService.Application.Services
             return res;
         }
 
-        public async Task<MultiLanguageTranslationResult?> MultipleTranslateAsync(string text)
+        public async Task<MultiLanguageTranslationResultDto?> MultipleTranslateAsync(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
                 throw new ArgumentException("Text cannot be empty");
 
-            var result = new MultiLanguageTranslationResult();
+            var result = new MultiLanguageTranslationResultDto();
 
             var allLanguages = Enum.GetValues<Language>();
 

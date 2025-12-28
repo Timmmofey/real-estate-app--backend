@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Classified.Shared.DTOs;
+using Microsoft.AspNetCore.Mvc;
 using TranslationService.Domain.Abstractions;
-using TranslationService.Domain.Models;
 
 namespace TranslationService.API.Controllers
 {
@@ -23,7 +23,7 @@ namespace TranslationService.API.Controllers
         }
 
         [HttpGet("multiple-translate")]
-        public async Task<MultiLanguageTranslationResult?> multipleTranslate(string text)
+        public async Task<MultiLanguageTranslationResultDto?> multipleTranslate(string text)
         {
             return await _googleTranslateService.MultipleTranslateAsync(text) ?? null;
         }

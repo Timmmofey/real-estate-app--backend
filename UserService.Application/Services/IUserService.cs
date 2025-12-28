@@ -9,6 +9,8 @@ namespace UserService.Application.Abstactions
     {
         Task<Guid> CreatePersonUserAsync(CreatePersonUserDto dto);
         Task<Guid> CreateCompanyUserAsync(CreateCompanyUserDto dto);
+        Task<Guid> CreatePersonUserFromOAuthAsync(CreatePersonUserOAuthDto dto);
+        Task<Guid> CreateCompanyUserFromOAuthAsync(CreateCompanyUserOAuthDto dto);
         Task<VerifiedUserDto> VerifyUsersCredentials(string emailOrPhone, string password);
 
         Task PatchPersonProfileAsync(Guid userId, EditPersonUserRequest updatedProfile);
@@ -24,6 +26,7 @@ namespace UserService.Application.Abstactions
         Task ChangeEmailAsync(Guid userId, string email);
         Task ChangePhoneNumberAsync(Guid userId, string phoneNumber);
         Task<User?> GetUserById(Guid id);
+        Task<VerifiedUserDto?> GetVerifiedUserDtoById(Guid id);
         Task ChangeUserPasswordWithOldPasswordVerification(Guid userId, string oldPassord, string newPassword);
         Task RequestToggleTwoFactorAuthenticationCode(Guid userId);
         Task ToggleTwoFactorAuthentication(Guid userId, string verificationCode);

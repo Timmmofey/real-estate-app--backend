@@ -1,7 +1,6 @@
 ﻿using UserService.Domain.Models;
 using UserService.Domain.Abstactions;
 using UserService.Application.DTOs;
-using UserService.Domain.Exeptions;
 using Classified.Shared.Constants;
 using UserService.Application.Abstactions;
 using Classified.Shared.Infrastructure.S3.Abstractions;
@@ -13,21 +12,23 @@ using Classified.Shared.Infrastructure.RedisService;
 using Classified.Shared.Infrastructure.EmailService;
 using Newtonsoft.Json;
 using UserService.Infrastructure.AuthService;
-
+using UserService.Application.Exeptions;
 
 namespace UserService.Application.Services
 {
     public class UserService : IUserService
     {
         private readonly IUserRepository _userRepository;
+        private readonly IUserOAuthAccountRepository _userOAuthAccountRepository;
         private readonly IPasswordHasher _passwordHasher;
         private readonly IFileStorageService _fileStorageService;
         private readonly IKafkaProducer _kafkaProducer;
         private readonly IRedisService _redisService;
         private readonly IEmailService _emailService;
         private readonly IAuthServiceClient _authService;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public UserService(IUserRepository userRepository, IPasswordHasher passwordHasher, IFileStorageService fileStorageService, IKafkaProducer kafkaProducer, IRedisService redisService, IEmailService emailService, IAuthServiceClient authService)
+        public UserService(IUserRepository userRepository, IPasswordHasher passwordHasher, IFileStorageService fileStorageService, IKafkaProducer kafkaProducer, IRedisService redisService, IEmailService emailService, IAuthServiceClient authService, IUnitOfWork unitOfWork, IUserOAuthAccountRepository userOAuthAccountRepository)
         {
             _userRepository = userRepository;
             _passwordHasher = passwordHasher;
@@ -36,6 +37,8 @@ namespace UserService.Application.Services
             _redisService = redisService;
             _emailService = emailService;
             _authService = authService;
+            _unitOfWork = unitOfWork;
+            _userOAuthAccountRepository = userOAuthAccountRepository;
         }
 
         public async Task<Guid> CreatePersonUserAsync(CreatePersonUserDto dto)
@@ -48,11 +51,11 @@ namespace UserService.Application.Services
             var userId = Guid.NewGuid();
             var hashedPassword = _passwordHasher.Generate(dto.Password);
 
-            var (user, userError) = User.Create(
+            var (user, userError) = User.CreateNew(
                 userId,
                 dto.Email,
-                hashedPassword,
                 dto.PhoneNumber,
+                hashedPassword,
                 UserRole.Person
             );
 
@@ -88,11 +91,11 @@ namespace UserService.Application.Services
             var userId = Guid.NewGuid();
             var hashedPassword = _passwordHasher.Generate(dto.Password);
 
-            var (user, userError) = User.Create(
+            var (user, userError) = User.CreateNew(
                 userId,
                 dto.Email,
-                hashedPassword,
                 dto.PhoneNumber,
+                hashedPassword,
                 UserRole.Company
             );
 
@@ -121,6 +124,150 @@ namespace UserService.Application.Services
             return userId;
         }
 
+        public async Task<Guid> CreatePersonUserFromOAuthAsync(CreatePersonUserOAuthDto dto)
+        {
+            await FindExistingOrResentlyDeletedUser(dto.Email, dto.PhoneNumber);
+
+            string? personMainPhotoUrl = null;
+            if (dto.MainPhoto != null)
+                personMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, "userProfileImages");
+
+            var userId = Guid.NewGuid();
+            string? hashedPassword = null;
+
+            if (!string.IsNullOrEmpty(dto.Password))
+                hashedPassword = _passwordHasher.Generate(dto.Password);
+
+            
+
+            await _unitOfWork.BeginAsync();
+
+            try
+            {
+                var (user, userError) = User.CreateNew(
+                    userId,
+                    dto.Email,
+                    dto.PhoneNumber,
+                    hashedPassword,
+                    UserRole.Person
+                );
+
+                if (user == null)
+                    throw new Exception(userError);
+
+                var (profile, profileError) = PersonProfile.Create(
+                    userId,
+                    dto.FirstName,
+                    dto.LastName,
+                    personMainPhotoUrl,
+                    dto?.Country,
+                    dto?.Region,
+                    dto?.Settlement,
+                    dto?.ZipCode
+                );
+
+                if (profile == null)
+                    throw new Exception(profileError);
+
+                var (oAuthAccount, oAuthAccountError) = UserOAuthAccount.CreateNew(
+                    userId,
+                    dto.Provider,
+                    dto.ProviderUserId
+                );
+
+                if (oAuthAccount == null)
+                    throw new Exception(oAuthAccountError);
+
+                await _userRepository.AddUserAsync(user);
+                await _userRepository.AddPersonProfileAsync(profile);
+                await _userOAuthAccountRepository.AddUserOAuthAccountAsync(oAuthAccount);
+
+
+                await _unitOfWork.CommitAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackAsync();
+                throw;
+            }
+                      
+            return userId;
+        }
+
+        public async Task<Guid> CreateCompanyUserFromOAuthAsync(CreateCompanyUserOAuthDto dto)
+        {
+            await FindExistingOrResentlyDeletedUser(dto.Email, dto.PhoneNumber);
+
+            string? companyMainPhotoUrl = null;
+            if (dto.MainPhoto != null)
+                companyMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, "userProfileImages");
+
+            var userId = Guid.NewGuid();
+            string? hashedPassword = null;
+
+            if (!string.IsNullOrEmpty(dto.Password))
+                hashedPassword = _passwordHasher.Generate(dto.Password);
+
+
+            await _unitOfWork.BeginAsync();
+
+            try
+            {
+                var (user, userError) = User.CreateNew(
+                    userId,
+                    dto.Email,
+                    dto.PhoneNumber,
+                    hashedPassword,
+                    UserRole.Company
+                );
+
+                if (user == null)
+                    throw new Exception(userError);
+
+                var (profile, profileError) = CompanyProfile.Create(
+                    userId,
+                    dto.Name,
+                    dto.Country ?? throw new Exception("Country is required"),
+                    dto.Region ?? throw new Exception("Region is required"),
+                    dto.Settlement ?? throw new Exception("Settlement is required"),
+                    dto.ZipCode ?? throw new Exception("ZipCode is required"),
+                    dto.RegistrationAdress,
+                    dto.СompanyRegistrationNumber,
+                    dto.EstimatedAt,
+                    companyMainPhotoUrl,
+                    dto.Description
+                );
+
+                if (profile == null)
+                    throw new Exception(profileError);
+
+                var (oAuthAccount, oAuthAccountError) = UserOAuthAccount.CreateNew(
+                    userId,
+                    dto.Provider,
+                    dto.ProviderUserId
+                );
+
+                if (oAuthAccount == null)
+                    throw new Exception(oAuthAccountError);
+
+                await _userRepository.AddUserAsync(user);
+                await _userRepository.AddCompanyProfileAsync(profile);
+                await _userOAuthAccountRepository.AddUserOAuthAccountAsync(oAuthAccount);
+
+
+                await _unitOfWork.CommitAsync();
+            } 
+            catch
+            {
+                await _unitOfWork.RollbackAsync();
+                throw;
+            }
+
+
+            return userId;
+        }
+
+
         public async Task<VerifiedUserDto> VerifyUsersCredentials(string emailOrPhone, string password)
         {
             var existingUser = await _userRepository.FindUserByEmailOrPhoneAsync(emailOrPhone, emailOrPhone);
@@ -136,9 +283,9 @@ namespace UserService.Application.Services
                 isDeleted = true;
             }
 
-            if (existingUser.IsBlocked == true) {
-                throw new BlockedUserAccountException();                               
-            }
+            //if (existingUser.IsBlocked == true) {
+            //    throw new BlockedUserAccountException();                               
+            //}
 
             return new VerifiedUserDto
             {
@@ -146,7 +293,8 @@ namespace UserService.Application.Services
                 Role = existingUser.Role,
                 Email = existingUser.Email,
                 IsDeleted = isDeleted,
-                IsTwoFactorEnabled = existingUser.IsTwoFactorEnabled
+                IsTwoFactorEnabled = existingUser.IsTwoFactorEnabled,
+                IsBlocked = existingUser.IsBlocked,
             };
         }
 
@@ -176,19 +324,9 @@ namespace UserService.Application.Services
                 await DeletePhotoAsync(prevMainPhotoUrl);
             }
 
-            // Формируем DTO без фото
-            var updatedFields = new EditPersonUserDto
-            {
-                FirstName = updatedProfile.FirstName,
-                LastName = updatedProfile.LastName,
-                Country = updatedProfile.Country,
-                Region = updatedProfile.Region,
-                Settlement = updatedProfile.Settlement,
-                ZipCode = updatedProfile.ZipCode,
-            };
-
             await _userRepository.PatchPersonProfileAsync(userId, updatedProfile?.FirstName, updatedProfile?.LastName, newPhotoUrl, updatedProfile?.Country, updatedProfile?.Region, updatedProfile?.Settlement, updatedProfile?.ZipCode);
         }
+
 
         public async Task PatchCompanyProfileAsync(Guid userId, EditCompanyUserRequest updatedProfile)
         {
@@ -215,19 +353,6 @@ namespace UserService.Application.Services
             {
                 await DeletePhotoAsync(prevMainPhotoUrl);
             }
-
-            var updatedFields = new EditCompanyUserDto
-            {
-                Name = updatedProfile.Name,
-                Country = updatedProfile.Country,
-                Region = updatedProfile.Region,
-                Settlement = updatedProfile.Settlement,
-                ZipCode = updatedProfile.ZipCode,
-                RegistrationAdress = updatedProfile.RegistrationAdress,
-                СompanyRegistrationNumber = updatedProfile.СompanyRegistrationNumber,
-                EstimatedAt = updatedProfile.EstimatedAt,
-                Description = updatedProfile.Description
-            };
 
             await _userRepository.PatchCompanyProfileAsync(userId, updatedProfile?.Name, updatedProfile?.Country, updatedProfile?.Region, updatedProfile?.Settlement, updatedProfile?.ZipCode, updatedProfile?.RegistrationAdress, updatedProfile?.СompanyRegistrationNumber, updatedProfile?.EstimatedAt, newPhotoUrl, updatedProfile?.Description);
         }
@@ -271,7 +396,7 @@ namespace UserService.Application.Services
 
             if (user == null)
             {
-                throw new NotImplementedException();
+                throw new KeyNotFoundException();
             }
 
             if (role == UserRole.Person)
@@ -280,7 +405,7 @@ namespace UserService.Application.Services
 
                 if (profile == null)
                 {
-                    throw new NotImplementedException();
+                    throw new KeyNotFoundException();
                 }
 
                 var profileDto = new PersonUserProfileDto
@@ -306,32 +431,32 @@ namespace UserService.Application.Services
 
                 if (profile == null)
                 {
-                    throw new NotImplementedException();
+                    throw new KeyNotFoundException();
                 }
 
                 var profileDto = new CompanyUserProfileDto
                 {
-                   Name = profile.Name,
-                   Email = user.Email,
-                   PhoneNumer = user.PhoneNumber,
-                   IsVerified = user.IsVerified,
-                   IsTwoFactorEnabled = user.IsTwoFactorEnabled,
-                   Country = profile.Country,
-                   Region = profile.Region,
-                   Settlement = profile.Settlement,
-                   ZipCode = profile.ZipCode,
-                   RegistrationAdress = profile.RegistrationAdress,
-                   СompanyRegistrationNumber = profile.СompanyRegistrationNumber,
-                   EstimatedAt = profile.EstimatedAt,
-                   MainPhotoUrl = profile.MainPhotoUrl,
-                   Description = profile.Description,
+                    Name = profile.Name,
+                    Email = user.Email,
+                    PhoneNumer = user.PhoneNumber,
+                    IsVerified = user.IsVerified,
+                    IsTwoFactorEnabled = user.IsTwoFactorEnabled,
+                    Country = profile.Country,
+                    Region = profile.Region,
+                    Settlement = profile.Settlement,
+                    ZipCode = profile.ZipCode,
+                    RegistrationAdress = profile.RegistrationAdress,
+                    СompanyRegistrationNumber = profile.СompanyRegistrationNumber,
+                    EstimatedAt = profile.EstimatedAt,
+                    MainPhotoUrl = profile.MainPhotoUrl,
+                    Description = profile.Description,
                 };
 
                 return profileDto;
             }
             else
             {
-                throw new NotImplementedException();
+                throw new KeyNotFoundException();
             }
         }
 
@@ -364,6 +489,33 @@ namespace UserService.Application.Services
             var user = await _userRepository.GetUserById(id);
 
             return user;
+        }
+
+        public async Task<VerifiedUserDto?> GetVerifiedUserDtoById(Guid id)
+        {
+            var user = await _userRepository.GetUserById(id);
+            var isDeleted = false;
+
+            if (user == null )
+            {
+                throw new NotValidCredentialsException();
+            }
+
+            if (user.IsSoftDeleted == true && user.DeletedAt > DateTime.UtcNow.AddMonths(-6) && user.IsPermanantlyDeleted != true)
+            {
+                isDeleted = true;
+            }
+
+            return new VerifiedUserDto
+            {
+                Id = user.Id,
+                Role = user.Role,
+                Email = user.Email,
+                IsDeleted = isDeleted,
+                IsTwoFactorEnabled = user.IsTwoFactorEnabled,
+                IsBlocked = user.IsBlocked,
+            };
+
         }
 
         public async Task ChangeUserPasswordWithOldPasswordVerification(Guid userId, string oldPassord, string newPassword)

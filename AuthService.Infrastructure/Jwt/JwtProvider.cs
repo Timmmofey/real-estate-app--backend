@@ -179,5 +179,36 @@ namespace AuthService.Infrastructure.Jwt
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        public string GenerateRegistrationToken(
+            string email,
+            string provider,
+            string providerUserId,
+            string? picture)
+        {
+            var claims = new[]
+            {
+                new Claim ("email", email),
+                new Claim ("provider", provider),
+                new Claim ("providerUserId", providerUserId),
+                new Claim ("type", JwtTokenType.OAuthRegistration.ToString())
+            };
+
+            //if (!string.IsNullOrEmpty(picture))
+            //    claims.Add(new Claim("picture", picture));
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var token = new JwtSecurityToken(
+                issuer: _config["Jwt:Issuer"],
+                audience: _config["Jwt:Audience"],
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(10),
+                signingCredentials: creds);
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
     }
 }

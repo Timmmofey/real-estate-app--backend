@@ -10,4 +10,5 @@ namespace UserService.Application.DTOs
         public string? Description { get; set; }
         public IFormFile? MainPhoto { get; set; }
     }
+
 }
