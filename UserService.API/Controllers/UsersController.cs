@@ -20,7 +20,7 @@ namespace UserService.API.Controllers
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
-        private readonly IUserOAuthAccountSevice _userOAuthAccountSevice;
+        private readonly IUserOAuthAccountSevice _userOAuthAccountService;
         private readonly IStringLocalizer<Messages> _localizer;
 
 
@@ -28,7 +28,7 @@ namespace UserService.API.Controllers
         {
             _userService = userService;
             _localizer = localizer;
-            _userOAuthAccountSevice = userOAuthAccountSevice;
+            _userOAuthAccountService = userOAuthAccountSevice;
         }
 
         [HttpPost("add-person-user")]
@@ -242,9 +242,9 @@ namespace UserService.API.Controllers
                 CookieHepler.RemoveRefreshAuthDeviceTokens(Response);
                 return Ok();
             }
-            catch (InvalidOperationException e) { 
+            catch (InvalidOperationException e) {
                 throw new Exception(e.Message);
-            }          
+            }
         }
 
         [AuthorizeToken(JwtTokenType.Restore)]
@@ -271,7 +271,8 @@ namespace UserService.API.Controllers
                 CookieHepler.DeleteCookie(Response, CookieNames.Restore);
                 return NoContent();
             }
-            catch (InvalidOperationException e) { 
+            catch (InvalidOperationException e) 
+            {
                 throw new Exception(e.Message);
             }
         }
@@ -280,7 +281,7 @@ namespace UserService.API.Controllers
         [HttpDelete("permanantly-delete-account")]
         public async Task<IActionResult> PermanantlyDeleteAccount()
         {
-         
+
             if (!Request.Cookies.TryGetValue("classified-restore-token", out var tokenHeader))
             {
                 return Unauthorized("Missing device token.");
@@ -309,10 +310,10 @@ namespace UserService.API.Controllers
         }
 
         [AuthorizeToken(JwtTokenType.Access)]
-        [HttpGet("get-users-info")]
+        [HttpGet("get-current-user-info")]
         public async Task<IActionResult> GetPersonalInfo()
         {
-            
+
             var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
             var roleClaim = User.Claims.FirstOrDefault(r => r.Type == ClaimTypes.Role)?.Value;
 
@@ -383,14 +384,14 @@ namespace UserService.API.Controllers
             }
         }
 
-            /// <summary>
-            /// /////// Reset Password Via Email
-            /// </summary> 
+        /// <summary>
+        /// /////// Reset Password Via Email
+        /// </summary> 
 
         [HttpPost("start-password-reset-via-email")]
         public async Task<IActionResult> StartPasswordResetViaEmail([FromForm] string email)
         {
-            
+
             if (string.IsNullOrWhiteSpace(email))
                 return BadRequest("Email is required");
             try
@@ -407,10 +408,10 @@ namespace UserService.API.Controllers
         [HttpPost("get-password-reset-token-via-email")]
         public async Task<IActionResult> GetPasswordResetTokenViaEmail([FromBody] GetPasswordResetTokenDto dto)
         {
-            
+
             if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.VerificationCode))
                 return BadRequest("Email and verification code are required");
-           
+
             try
             {
                 var resetPasswordToken = await _userService.GetPasswordResetTokenViaEmail(dto);
@@ -419,7 +420,7 @@ namespace UserService.API.Controllers
 
                 return Ok("Reset token issued");
             }
-            catch (Exception e) 
+            catch (Exception e)
             {
                 return BadRequest(e.Message);
             }
@@ -432,7 +433,7 @@ namespace UserService.API.Controllers
         {
             if (!Request.Cookies.TryGetValue(CookieNames.PasswordReset, out var resetPasswordToken) || string.IsNullOrEmpty(resetPasswordToken))
                 return Unauthorized("Refresh token is missing or invalid.");
-            
+
             var handler = new JwtSecurityTokenHandler();
 
             var resetPasswordJwt = handler.ReadJwtToken(resetPasswordToken);
@@ -444,7 +445,7 @@ namespace UserService.API.Controllers
                 CookieHepler.DeleteCookie(Response, CookieNames.PasswordReset);
                 return Ok();
             }
-            catch (Exception e) 
+            catch (Exception e)
             {
                 throw new Exception(e.Message);
             }
@@ -454,7 +455,7 @@ namespace UserService.API.Controllers
         [HttpGet("get-user-role-by-id")]
         public async Task<UserRole?> GetUserRoleById(string userId)
         {
-            var user =  await _userService.GetUserById(Guid.Parse(userId));
+            var user = await _userService.GetUserById(Guid.Parse(userId));
 
             return user?.Role;
         }
@@ -554,13 +555,13 @@ namespace UserService.API.Controllers
 
             try
             {
-               var resetEmailToken = await _userService.confirmNewEmail(userId, dto.verificationCode);
+                var resetEmailToken = await _userService.confirmNewEmail(userId, dto.verificationCode);
 
                 CookieHepler.SetCookie(Response, CookieNames.EmailReset, resetEmailToken, minutes: 5);
 
                 return Ok("Reset token issued");
             }
-            catch (InvalidOperationException e)
+            catch (Exception e)
             {
                 throw new Exception(e.Message);
             }
@@ -579,11 +580,11 @@ namespace UserService.API.Controllers
 
             var userIdClaim = resetPasswordJwt.Claims.FirstOrDefault(c => c.Type == "userId")?.Value;
             var newEmailClaim = resetPasswordJwt.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
-           
+
             if (!Guid.TryParse(userIdClaim, out var userId))
                 return Unauthorized();
 
-            if (string.IsNullOrEmpty(newEmailClaim)) 
+            if (string.IsNullOrEmpty(newEmailClaim))
                 return NotFound();
 
             try
@@ -616,7 +617,7 @@ namespace UserService.API.Controllers
                 await _userService.ChangePhoneNumberAsync(userId, phoneNumber.PhoneNumber);
                 return Ok();
             }
-            catch (Exception e) 
+            catch (Exception e)
             {
                 throw new Exception(e.Message);
             }
@@ -655,8 +656,7 @@ namespace UserService.API.Controllers
                 return BadRequest("Unknown OAuth provider");
             }
 
-            var result = await _userOAuthAccountSevice
-                .GetUserOAuthAccountByProviderAndProviderUserId(provider, providerUserId);
+            var result = await _userOAuthAccountService.GetUserOAuthAccountByProviderAndProviderUserId(provider, providerUserId);
 
             if (result == null)
             {
@@ -666,6 +666,55 @@ namespace UserService.API.Controllers
             return Ok(result);
         }
 
+        [AuthorizeToken(JwtTokenType.Access)]
+        [HttpGet("get-my-o-auth-accounts")]
+        public async Task<ActionResult<ICollection<UserOAuthAccountDto>>> getMyOAuthAccounts()
+        {
+            var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
+
+            if (!Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized();
+
+            var res = await _userOAuthAccountService.GetUsersOAuthAccountsByUserId(userId);
+
+            return Ok(res);
+        }
+
+        [HttpPost("connect-oauth-account-to-existing-user")]
+        public async Task<IActionResult> ConnectOauthAccountToExistingUser([FromBody] ConnectOAuthAccountRequest request)
+        {
+            try
+            {
+                await _userOAuthAccountService.ConnectOauthAccountToExistingUser(request.Provider, request.ProviderId, request.UserId);
+                return Ok();
+            }
+            catch (OAuthAccountAlreadyLinkedException e)
+            {
+                return Conflict(e.Message);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+
+        }
+
+        [HttpPost("unlink-oauth-account-from-me")]
+        public async Task<IActionResult> UnlinkOAuthAccountFromMe([FromQuery] OAuthProvider provider)
+        {
+            var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
+            if (!Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized();
+            try
+            {
+                await _userOAuthAccountService.UnLinkOAuthAccountAsync(provider, userId);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message });
+            }
+        }
     }
 
 

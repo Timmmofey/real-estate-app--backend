@@ -157,7 +157,7 @@ namespace UserService.Application.Services
 
                 var (profile, profileError) = PersonProfile.Create(
                     userId,
-                    dto.FirstName,
+                    dto!.FirstName,
                     dto.LastName,
                     personMainPhotoUrl,
                     dto?.Country,
@@ -171,7 +171,7 @@ namespace UserService.Application.Services
 
                 var (oAuthAccount, oAuthAccountError) = UserOAuthAccount.CreateNew(
                     userId,
-                    dto.Provider,
+                    dto!.Provider,
                     dto.ProviderUserId
                 );
 
@@ -267,11 +267,13 @@ namespace UserService.Application.Services
             return userId;
         }
 
-
         public async Task<VerifiedUserDto> VerifyUsersCredentials(string emailOrPhone, string password)
         {
             var existingUser = await _userRepository.FindUserByEmailOrPhoneAsync(emailOrPhone, emailOrPhone);
             var isDeleted = false;
+
+            if (existingUser?.PasswordHash == null)
+                throw new UserDoesntHavePasswordException();
 
             if (existingUser == null || !_passwordHasher.Verify(password, existingUser.PasswordHash) || existingUser.IsPermanantlyDeleted == true || (existingUser.IsSoftDeleted == true && existingUser.DeletedAt < DateTime.UtcNow.AddMonths(-6)))
             { 
@@ -282,10 +284,6 @@ namespace UserService.Application.Services
             {
                 isDeleted = true;
             }
-
-            //if (existingUser.IsBlocked == true) {
-            //    throw new BlockedUserAccountException();                               
-            //}
 
             return new VerifiedUserDto
             {
@@ -416,6 +414,7 @@ namespace UserService.Application.Services
                     PhoneNumer = user.PhoneNumber,
                     IsVerified = user.IsVerified,
                     IsTwoFactorEnabled = user.IsTwoFactorEnabled,
+                    IsOAuthOnly = String.IsNullOrEmpty(user.PasswordHash),
                     MainPhotoUrl = profile?.MainPhotoUrl,
                     Country = profile?.Country,
                     Region = profile?.Region,
@@ -661,7 +660,7 @@ namespace UserService.Application.Services
             if (string.IsNullOrEmpty(resetEmailToken))
                 throw new Exception("Failed to generate request new email confirmation token");
 
-            await _redisService.DeleteAsync($"old-password-cofirmation-code:{userId}");
+            await _redisService.DeleteAsync($"current-email-cofirmation-code:{userId}");
 
             return resetEmailToken;
         }

@@ -1,4 +1,6 @@
 ﻿using AuthService.Domain.DTOs;
+using Classified.Shared.Constants;
+using Classified.Shared.DTOs;
 
 namespace AuthService.Domain.Abstactions
 {
@@ -12,6 +14,8 @@ namespace AuthService.Domain.Abstactions
             string? twoFactorAuthToken
         )> LoginWithOAuthAsync(Guid userId, Guid deviceId);
         Task<string?> GetUserIdByEmailAsync(string email);
+        Task<UserOAuthAccountDto?> GetUserOAuthAccountByProviderAndProviderUserIdAsync(OAuthProvider provider, string providerUserId);
+        Task LinkOAuthAccountAsync(OAuthProvider provider, string providerId, Guid userId);
         Task<TokenResponseDto> RefreshAsync(Guid refreshToken, Guid deviceId);
         Task LogoutAync(Guid deviceId);
         Task LogoutAllAsync(Guid userId);

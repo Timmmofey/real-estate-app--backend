@@ -7,6 +7,7 @@
         public string PhoneNumer { get; set; } = default!;
         public bool IsVerified { get; set; }
         public bool IsTwoFactorEnabled { get; set; }
+        public bool IsOAuthOnly { get; set; }
         public string Country { get; set; } = default!;
         public string Region { get; set; } = default!;
         public string Settlement { get; set; } = default!;

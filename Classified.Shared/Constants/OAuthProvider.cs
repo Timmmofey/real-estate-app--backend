@@ -3,7 +3,6 @@
     public enum OAuthProvider
     {
         Google,
-        Apple,
-        GitHub
+        Apple
     }
 }

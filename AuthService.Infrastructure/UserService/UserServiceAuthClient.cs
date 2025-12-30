@@ -83,5 +83,23 @@ namespace AuthService.Infrastructure.UserService
 
             return await response.Content.ReadAsStringAsync();
         }
+
+        public async Task ConnectOauthAccountToExistingUserAsync(OAuthProvider provider, string providerId, Guid userId)
+        {
+            var request = new
+            {
+                Provider = provider,
+                ProviderId = providerId,
+                UserId = userId
+            };
+
+            var response = await _http.PostAsJsonAsync("api/users/connect-oauth-account-to-existing-user", request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Ошибка при подключении OAuth аккаунта: {errorMessage}");
+            }
+        }
     }
 }

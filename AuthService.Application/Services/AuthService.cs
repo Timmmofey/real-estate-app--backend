@@ -3,6 +3,7 @@ using AuthService.Domain.Abstactions;
 using AuthService.Domain.DTOs;
 using AuthService.Domain.Models;
 using Classified.Shared.Constants;
+using Classified.Shared.DTOs;
 using Classified.Shared.Infrastructure.EmailService;
 using Classified.Shared.Infrastructure.RedisService;
 using DeviceDetectorNET;
@@ -160,6 +161,18 @@ namespace AuthService.Application.Services
         public async Task<string?> GetUserIdByEmailAsync(string email)
         {
             return await _userServiceClient.GetUserIdByEmailAsync(email);
+        }
+
+        public async Task<UserOAuthAccountDto?> GetUserOAuthAccountByProviderAndProviderUserIdAsync(OAuthProvider provider, string providerUserId)
+        {
+            var existingOAuthAccount = await _userServiceClient.GetUserOAuthAccountByProviderAndProviderUserIdAsync(provider, providerUserId);
+
+            return existingOAuthAccount;
+        }
+
+        public async Task LinkOAuthAccountAsync(OAuthProvider provider, string providerId, Guid userId) 
+        {
+            await _userServiceClient.ConnectOauthAccountToExistingUserAsync(provider, providerId, userId);
         }
 
         public async Task<TokenResponseDto?> LoginViaTWoFactorAuthentication(string userId, string deviceId, string code)

@@ -13,7 +13,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using Classified.Shared.DTOs;
 
 namespace AuthService.API.Controllers
 {
@@ -25,16 +24,14 @@ namespace AuthService.API.Controllers
         private readonly IJwtProvider _jwtProvider;
         private readonly IStringLocalizer<Messages> _localizer;
         private readonly IConfiguration _config;
-        private readonly IUserServiceClient _userServiceClient;
 
 
-        public AuthController(IAuthService authService, IJwtProvider jwtProvider, IStringLocalizer<Messages> localizer, IConfiguration config, IUserServiceClient userServiceClient)
+        public AuthController(IAuthService authService, IJwtProvider jwtProvider, IStringLocalizer<Messages> localizer, IConfiguration config)
         {
             _authService = authService;
             _jwtProvider = jwtProvider;
             _localizer = localizer;
             _config = config;
-            _userServiceClient = userServiceClient;
         }
 
         [AllowAnonymous]
@@ -148,8 +145,31 @@ namespace AuthService.API.Controllers
             var frontendBaseUrl = _config["Frontend:BaseUrl"] ?? "http://localhost:3000";
             var provider = OAuthProvider.Google;
 
+            var existingOAuthAccount = await _authService.GetUserOAuthAccountByProviderAndProviderUserIdAsync(provider, providerUserId);
+
+
+            // Если пользовтель авторизован осуществляем привязку аккаунта к OAuth
+            var userIdFromAuthToken = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
+
+            if (userIdFromAuthToken != null)
+            {
+                var currentUserId = Guid.Parse(userIdFromAuthToken);
+
+                // Проверяем, нет ли уже привязанного аккаунта с этим provider+providerUserId
+                if (existingOAuthAccount != null)
+                {
+                    // Этот OAuth уже привязан к другому пользователю — нельзя
+                    return BadRequest("This Google account is already linked to another user.");
+                }
+
+                // Привязываем аккаунт к текущему пользователю
+                await _authService.LinkOAuthAccountAsync(provider, providerUserId, currentUserId);
+
+                // Редиректим на страницу успеха
+                return Redirect($"{frontendBaseUrl}/settings");
+            }
+
             // 3. Если уже есть запись UserOAuthAccount (provider+providerUserId) => логиним
-            var existingOAuthAccount = await _userServiceClient.GetUserOAuthAccountByProviderAndProviderUserIdAsync(provider, providerUserId);
             if (existingOAuthAccount != null)
             {
                 // имеем userId
@@ -308,7 +328,7 @@ namespace AuthService.API.Controllers
         }
 
         [AuthorizeToken(JwtTokenType.Access)]
-        [HttpGet("get-users-sessions")]
+        [HttpGet("get-current-user-sessions")]
         public async Task<ActionResult<ICollection<SessionDto>>> GetUsersSessionAsync()
         {
             var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;

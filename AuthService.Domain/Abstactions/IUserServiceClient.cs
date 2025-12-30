@@ -9,5 +9,6 @@ namespace AuthService.Domain.Abstactions
         Task<VerifiedUserDto?> GetVerifiedUserDtoByIdAsync(string userId);
         Task<UserOAuthAccountDto?> GetUserOAuthAccountByProviderAndProviderUserIdAsync(OAuthProvider provider, string providerUserId);
         Task<string?> GetUserIdByEmailAsync(string email);
+        Task ConnectOauthAccountToExistingUserAsync(OAuthProvider provider, string providerId, Guid userId);
     }
 }

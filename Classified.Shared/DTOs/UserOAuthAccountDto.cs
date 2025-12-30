@@ -6,8 +6,8 @@ namespace Classified.Shared.DTOs
     {
         public Guid Id { get; set; }
         public Guid UserId { get; set; }
-        public OAuthProvider OAuthProviderName { get; set; }
-        public string ProviderUserId { get; set; } = default!;
-        public DateTime CreatedAt { get; set; }
+        public string OAuthProviderName { get; set; } = default!;
+        //public string ProviderUserId { get; set; } = default!;
+        //public DateTime CreatedAt { get; set; }
     }
 }
