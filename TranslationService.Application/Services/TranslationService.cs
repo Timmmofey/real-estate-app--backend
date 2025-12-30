@@ -2,7 +2,6 @@
 using Classified.Shared.DTOs;
 using Classified.Shared.Infrastructure.RedisService;
 using TranslationService.Domain.Abstractions;
-using TranslationService.Domain.Models;
 
 namespace TranslationService.Application.Services
 {

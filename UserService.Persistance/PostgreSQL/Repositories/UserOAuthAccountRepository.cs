@@ -88,5 +88,12 @@ namespace UserService.Persistance.PostgreSQL.Repositories
                 .ExecuteDeleteAsync();
         }
 
+        public async Task DeleteAllOAuthAccountsByUserIdAsync(Guid userId)
+        {
+            var deleted = await _context.UserOAuthAccounts
+                .Where(a => a.UserId == userId)
+                .ExecuteDeleteAsync();
+        }
+
     }
 }

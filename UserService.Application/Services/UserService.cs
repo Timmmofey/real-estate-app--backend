@@ -385,7 +385,18 @@ namespace UserService.Application.Services
 
         public async Task PermanantlyDeleteAccount(Guid id)
         {
-            await _userRepository.PermanantlyDeleteUserAsync(id);
+            await _unitOfWork.BeginAsync();
+            try
+            {
+                await _userRepository.PermanantlyDeleteUserAsync(id);
+                await _userOAuthAccountRepository.DeleteAllOAuthAccountsByUserIdAsync(id);
+                await _unitOfWork.CommitAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<object?> GetUserProfileInfo(Guid userId, UserRole role)

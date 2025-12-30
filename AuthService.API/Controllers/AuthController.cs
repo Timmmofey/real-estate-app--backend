@@ -159,14 +159,14 @@ namespace AuthService.API.Controllers
                 if (existingOAuthAccount != null)
                 {
                     // Этот OAuth уже привязан к другому пользователю — нельзя
-                    return BadRequest("This Google account is already linked to another user.");
+                    return Redirect($"{frontendBaseUrl}/settings?tab=security&toast=toastGoogleAccountConnectedToOtherUser");
                 }
 
                 // Привязываем аккаунт к текущему пользователю
                 await _authService.LinkOAuthAccountAsync(provider, providerUserId, currentUserId);
 
                 // Редиректим на страницу успеха
-                return Redirect($"{frontendBaseUrl}/settings");
+                return Redirect($"{frontendBaseUrl}/settings?tab=security&toast=toastGoogleAccountConnectedSuccessfully&toast-type=success");
             }
 
             // 3. Если уже есть запись UserOAuthAccount (provider+providerUserId) => логиним
@@ -212,7 +212,7 @@ namespace AuthService.API.Controllers
                 {
                     // email занят — просим пользователя войти и привязать внешний провайдер вручную
                     // редиректим на фронт, который покажет инструкцию "Войдите в аккаунт, затем привяжите Google"
-                    var redirect = $"{frontendBaseUrl}/oauth/link?email={Uri.EscapeDataString(email)}&provider={Uri.EscapeDataString(provider.ToString())}";
+                    var redirect = $"{frontendBaseUrl}/login?toast=thisGoogleAccountEmailIsAlredyConnected";
                     return Redirect(redirect);
                 }
             }

@@ -9,5 +9,6 @@ namespace UserService.Domain.Abstactions
         Task AddUserOAuthAccountAsync(UserOAuthAccount userOAuthAccount);
         Task<bool> ChechIfUserHasOauthAccountWithSameProvider(OAuthProvider provider, Guid userId);
         Task DeleteOAuthAccountByUserIdAsync(OAuthProvider provider, Guid userId);
+        Task DeleteAllOAuthAccountsByUserIdAsync(Guid userId);
     }
 }
