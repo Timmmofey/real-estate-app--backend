@@ -353,7 +353,7 @@ namespace UserService.Persistance.PostgreSQL.Repositories
 
         public async Task<Guid?> GetUserIdByEmailAsync(string email)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email.Trim() && u.IsSoftDeleted == false);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email.Trim() && u.IsPermanantlyDeleted == false);
 
             return user?.Id;
         }
