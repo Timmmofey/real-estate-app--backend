@@ -121,6 +121,6 @@
     <value>Этот аккаунт был заблокирован и-за нарушения правил платформы.</value>
   </data>
   <data name="InvalidСredentialsException" xml:space="preserve">
-    <value>Проверьте правильность данных</value>
+    <value>Проверьте правильность введенных данных</value>
   </data>
 </root>

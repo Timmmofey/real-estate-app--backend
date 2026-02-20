@@ -2,11 +2,12 @@
 using AuthService.Application.Exceptions;
 using AuthService.Domain.Abstactions;
 using AuthService.Domain.DTOs;
+using AuthService.Domain.Consts;
 using Classified.Shared.Constants;
 using Classified.Shared.Filters;
 using Classified.Shared.Functions;
-using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -40,36 +41,69 @@ namespace AuthService.API.Controllers
         {
             try
             {
+                //var deviceId = GetOrCreateDeviceId();
+
+                //var (tokens, restoreToken, twoFactorAuthenticatinToken) = await _authService.LoginAsync(dto.PhoneOrEmail, dto.Password, deviceId);
+
+                //if (restoreToken != null)
+                //{
+                //    CookieHepler.SetCookie(Response, CookieNames.Restore, restoreToken, minutes: 5);
+
+                //    return Ok(new { restore = true });
+                //}
+
+                //if (twoFactorAuthenticatinToken != null)
+                //{
+                //    CookieHepler.SetCookie(Response, CookieNames.TwoFactorAuthentication, twoFactorAuthenticatinToken, minutes: 5);
+
+                //    return Ok(new { isTwoFactorAuth = true });
+                //}
+
+                //CookieHepler.SetCookie(Response, CookieNames.Auth, tokens!.AccessToken, minutes: 10);
+                //CookieHepler.SetCookie(Response, CookieNames.Refresh, tokens.RefreshToken, days: 150);
+
+                //return Ok();
+
                 var deviceId = GetOrCreateDeviceId();
 
-                var (tokens, restoreToken, twoFactorAuthenticatinToken) = await _authService.LoginAsync(dto.PhoneOrEmail, dto.Password, deviceId);
 
-                if (restoreToken != null)
+                var (tokens, restoreToken, twoFactorAuthToken) = await _authService.LoginAsync(dto.PhoneOrEmail, dto.Password, deviceId);
+
+                // Restore
+                if (!string.IsNullOrEmpty(restoreToken))
                 {
                     CookieHepler.SetCookie(Response, CookieNames.Restore, restoreToken, minutes: 5);
-
-                    return Ok(new { restore = true });
+                    return Ok(new { Status = LoginStatus.Restore });
                 }
 
-                if (twoFactorAuthenticatinToken != null)
+                // Two-Factor Authentication
+                if (!string.IsNullOrEmpty(twoFactorAuthToken))
                 {
-                    CookieHepler.SetCookie(Response, CookieNames.TwoFactorAuthentication, twoFactorAuthenticatinToken, minutes: 5);
-
-                    return Ok(new { isTwoFactorAuth = true });
+                    CookieHepler.SetCookie(Response, CookieNames.TwoFactorAuthentication, twoFactorAuthToken, minutes: 5);
+                    return Ok(new { Status = LoginStatus.TwoFactor });
                 }
 
-                CookieHepler.SetCookie(Response, CookieNames.Auth, tokens!.AccessToken, minutes: 10);
-                CookieHepler.SetCookie(Response, CookieNames.Refresh, tokens.RefreshToken, days: 150);
+                // Success
+                if (tokens != null)
+                {
+                    CookieHepler.SetCookie(Response, CookieNames.Auth, tokens.AccessToken, minutes: 10);
+                    CookieHepler.SetCookie(Response, CookieNames.Refresh, tokens.RefreshToken, days: 150);
+                    return Ok(new { Status = LoginStatus.Success });
+                }
 
-                return Ok();
+                // На всякий случай — invalid credentials
+                return BadRequest(new { Status = LoginStatus.InvalidCredentials });
             }
             catch (BlockedUserAccountException)
             {
-                return Conflict(new { Message = _localizer["BlockedUserAccountException"] });
+                return Conflict(new
+                {
+                    Message = _localizer["BlockedUserAccountException"],  Status = LoginStatus.Blocked
+                }); 
             }
             catch (InvalidСredentialsException)
             {
-                return Conflict(new { Message = _localizer["InvalidСredentialsException"] });
+                return Conflict(new { Message = _localizer["InvalidСredentialsException"], Status = LoginStatus.InvalidCredentials });
             }
             catch (Exception ex)
             {
@@ -219,7 +253,7 @@ namespace AuthService.API.Controllers
 
             // 5. Нет пользователя — генерируем registration token и отправляем на страницу дорегистрации
             // Токен нужен чтобы фронтенд корректно предзаполнил форму регистрации и затем вызвал CreateFromOAuth
-            var registrationToken = _jwtProvider.GenerateRegistrationToken(email ?? "", provider.ToString(), providerUserId, picture);
+            var registrationToken = _jwtProvider.GenerateOAuthRegistrationToken(email ?? "", provider.ToString(), providerUserId, picture);
 
             // можно передать токен через query или через cookie
             // передаём в query + ставим куку на 10 минут для безопасности (или поменяйте на вашу логику)
@@ -375,9 +409,13 @@ namespace AuthService.API.Controllers
             return Ok(resetPasswordJwt);
         }
 
+
+
         /// <summary>
         ///
         /// </summary>
+
+
 
         private IActionResult? TryGetDeviceIdFromCookie(out Guid deviceId)
         {

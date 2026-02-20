@@ -6,8 +6,8 @@ namespace UserService.Domain.Models
     public class User
     {
         public Guid Id { get; }
-        public string Email { get; } = default!;
-        public string PhoneNumber { get; } = default!;
+        public string Email { get; }
+        public string PhoneNumber { get; }
         public UserRole Role { get; }
 
         public bool IsTwoFactorEnabled { get; } = false;

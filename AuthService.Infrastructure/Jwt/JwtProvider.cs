@@ -180,7 +180,7 @@ namespace AuthService.Infrastructure.Jwt
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        public string GenerateRegistrationToken(
+        public string GenerateOAuthRegistrationToken(
             string email,
             string provider,
             string providerUserId,

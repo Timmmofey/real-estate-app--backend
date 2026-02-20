@@ -14,7 +14,7 @@ namespace UserService.Application.DTOs
         public string ZipCode { get; set; } = default!;
         public string RegistrationAdress { get; set; } = default!;
         public string СompanyRegistrationNumber { get; set; } = default!;
-        public DateOnly EstimatedAt { get; }
+        public DateOnly EstimatedAt { get; set; }
         public string? Description { get; set; }
         public IFormFile? MainPhoto { get; set; }
     }
