@@ -1,10 +1,10 @@
 ﻿using AuthService.API.Resources;
 using AuthService.Application.Exceptions;
 using AuthService.Domain.Abstactions;
-using AuthService.Domain.DTOs;
 using AuthService.Domain.Consts;
+using AuthService.Domain.DTOs;
 using Classified.Shared.Constants;
-using Classified.Shared.Filters;
+using Classified.Shared.Extensions.Auth;
 using Classified.Shared.Functions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
@@ -111,7 +111,7 @@ namespace AuthService.API.Controllers
             }
         }
 
-        [AuthorizeToken(JwtTokenType.TwoFactorAuthentication)]
+        [ValidateToken(JwtTokenType.TwoFactorAuthentication)]
         [HttpPost("login-via-two-factor-auth")]
         public async Task<IActionResult> LoginViaTwoFactorAuth([FromBody]string code)
         {
@@ -184,6 +184,8 @@ namespace AuthService.API.Controllers
 
             // Если пользовтель авторизован осуществляем привязку аккаунта к OAuth
             var userIdFromAuthToken = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
+
+            //Request.Cookies.TryGetValue(CookieNames.Auth, out var userIdFromAuthToken);
 
             if (userIdFromAuthToken != null)
             {
@@ -263,7 +265,8 @@ namespace AuthService.API.Controllers
         }
 
 
-        [AuthorizeToken(JwtTokenType.Refresh)]
+        //[AuthorizeToken(JwtTokenType.Refresh)]
+        [ValidateToken(JwtTokenType.Refresh)]
         [HttpPost("Refresh")]
         public async Task<IActionResult> Refresh()
         {
@@ -307,7 +310,7 @@ namespace AuthService.API.Controllers
             }
         }
 
-        [AuthorizeToken(JwtTokenType.Access)]
+        [Authorize]
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
@@ -325,7 +328,7 @@ namespace AuthService.API.Controllers
         }
 
 
-        [AuthorizeToken(JwtTokenType.Access)]
+        [Authorize]
         [HttpPost("logout-all")]
         public async Task<IActionResult> LogoutAll()
         {
@@ -342,7 +345,7 @@ namespace AuthService.API.Controllers
             return NoContent();
         }
 
-        [AuthorizeToken(JwtTokenType.Access)]
+        [Authorize]
         [HttpPost("terminate-session")]
         public async Task<IActionResult> TerminateSessionAsync(Guid sessionId)
         {
@@ -361,7 +364,7 @@ namespace AuthService.API.Controllers
             return NoContent();
         }
 
-        [AuthorizeToken(JwtTokenType.Access)]
+        [Authorize]
         [HttpGet("get-current-user-sessions")]
         public async Task<ActionResult<ICollection<SessionDto>>> GetUsersSessionAsync()
         {

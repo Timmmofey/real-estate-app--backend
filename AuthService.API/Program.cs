@@ -5,6 +5,7 @@ using AuthService.Infrastructure.UserService;
 using AuthService.Persistance;
 using AuthService.Persistance.Repositories;
 using Classified.Shared.Extensions;
+using Classified.Shared.Extensions.Auth;
 using FluentValidation.AspNetCore;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;

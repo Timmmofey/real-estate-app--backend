@@ -13,6 +13,7 @@ using Classified.Shared.Infrastructure.EmailService;
 using UserService.Infrastructure.AuthService;
 using StackExchange.Redis;
 using Classified.Shared.Infrastructure.RedisService;
+using Classified.Shared.Extensions.Auth;
 
 
 
