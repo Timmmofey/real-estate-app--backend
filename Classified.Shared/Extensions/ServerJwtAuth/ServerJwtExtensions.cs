@@ -22,7 +22,7 @@ namespace Classified.Shared.Extensions.ServerJwtAuth
                 ValidateIssuer = false,
                 ValidateAudience = false,
                 ValidateLifetime = true,
-                ClockSkew = TimeSpan.FromMinutes(3),
+                ClockSkew = TimeSpan.FromMinutes(1),
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = signingKey
             };
