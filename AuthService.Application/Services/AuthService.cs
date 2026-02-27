@@ -35,7 +35,15 @@ namespace AuthService.Application.Services
 
         public async Task<(TokenResponseDto?, string?, string?)> LoginAsync(string phoneOrEmail, string password, Guid deviceId)
         {
-            var user = await _userServiceClient.VerifyUserCredentialsAsync(phoneOrEmail, password);
+            VerifiedUserDto? user;
+            try
+            {
+                 user = await _userServiceClient.VerifyUserCredentialsAsync(phoneOrEmail, password);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"{ex}");
+            }
 
             if (user == null)
                 throw new InvalidСredentialsException();

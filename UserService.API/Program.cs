@@ -1,19 +1,21 @@
-using Microsoft.EntityFrameworkCore;
-using UserService.API.Extensions;
-using UserService.Persistance.PostgreSQL;
-using FluentValidation.AspNetCore;
-using FluentValidation;
-using UserService.Application;
-using Classified.Shared.Infrastructure.S3.Extensions;
-using UserService.Infrastructure;
-using UserService.Domain.Abstactions;
 using Classified.Shared.Extensions;
-using UserService.Infrastructure.Kafka;
-using Classified.Shared.Infrastructure.EmailService;
-using UserService.Infrastructure.AuthService;
-using StackExchange.Redis;
-using Classified.Shared.Infrastructure.RedisService;
 using Classified.Shared.Extensions.Auth;
+using Classified.Shared.Extensions.ServerJwtAuth;
+using Classified.Shared.Infrastructure.EmailService;
+using Classified.Shared.Infrastructure.MicroserviceJwt;
+using Classified.Shared.Infrastructure.RedisService;
+using Classified.Shared.Infrastructure.S3.Extensions;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
+using UserService.API.Extensions;
+using UserService.Application;
+using UserService.Domain.Abstactions;
+using UserService.Infrastructure;
+using UserService.Infrastructure.AuthService;
+using UserService.Infrastructure.Kafka;
+using UserService.Persistance.PostgreSQL;
 
 
 
@@ -58,9 +60,13 @@ builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddEmailService(builder.Configuration);
 
 builder.Services.AddJwtAuthentication(configuration);
+builder.Services.AddServerJwtAuthentication(builder.Configuration);
+builder.Services.AddSingleton<IMicroserviceJwtProvider, MicroserviceJwtProvider>();
+
 
 builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect("localhost:6379"));
 builder.Services.AddScoped<IRedisService, RedisService>();
+
 
 //Cors
 builder.Services.AddDefaultCors();
@@ -77,6 +83,8 @@ if (app.Environment.IsDevelopment())
 // Добавляем мидлвар для глобальной обработки ошибок
 //app.UseMiddleware<GlobalExceptionMiddleware>();
 
+app.UseRouting();
+
 app.UseAppLocalization();
 
 
@@ -87,6 +95,7 @@ app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
 
 app.MapControllers();
 

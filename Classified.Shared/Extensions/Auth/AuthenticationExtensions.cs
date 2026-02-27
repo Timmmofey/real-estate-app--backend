@@ -46,7 +46,6 @@ namespace Classified.Shared.Extensions.Auth
                 {
                     OnMessageReceived = context =>
                     {
-                        // hot-path: only look for the main access cookie
                         if (context.Request.Cookies.TryGetValue(CookieNames.Auth, out var token) && !string.IsNullOrEmpty(token))
                         {
                             context.Token = token;

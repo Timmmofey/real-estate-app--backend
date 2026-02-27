@@ -1,3 +1,4 @@
+using AuthService.Application;
 using AuthService.Domain.Abstactions;
 using AuthService.Infrastructure.Jwt;
 using AuthService.Infrastructure.Kafka;
@@ -6,16 +7,17 @@ using AuthService.Persistance;
 using AuthService.Persistance.Repositories;
 using Classified.Shared.Extensions;
 using Classified.Shared.Extensions.Auth;
-using FluentValidation.AspNetCore;
-using FluentValidation;
-using Microsoft.EntityFrameworkCore;
-using UAParser;
-using AuthService.Application;
-using Classified.Shared.Infrastructure.RedisService;
-using StackExchange.Redis;
+using Classified.Shared.Extensions.ServerJwtAuth;
 using Classified.Shared.Infrastructure.EmailService;
+using Classified.Shared.Infrastructure.MicroserviceJwt;
+using Classified.Shared.Infrastructure.RedisService;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
+using UAParser;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,6 +70,8 @@ builder.Services.AddEmailService(configuration);
 
 //JwtAuth
 builder.Services.AddJwtAuthentication(configuration);
+builder.Services.AddServerJwtAuthentication(builder.Configuration);
+builder.Services.AddSingleton<IMicroserviceJwtProvider, MicroserviceJwtProvider>();
 
 //Cors
 builder.Services.AddDefaultCors();
@@ -121,11 +125,14 @@ if (app.Environment.IsDevelopment())
 // Добавляем мидлвар для глобальной обработки ошибок
 //app.UseMiddleware<GlobalExceptionMiddleware>();
 
+app.UseRouting();
+
 app.UseAppLocalization();
 
 
 
 app.UseHttpsRedirection();
+app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 
@@ -135,6 +142,5 @@ app.MapControllers();
 
 
 
-app.UseCors("AllowFrontend");
 
 app.Run();

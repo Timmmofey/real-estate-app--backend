@@ -1,6 +1,9 @@
 ﻿using AuthService.Domain.Abstactions;
+using AuthService.Infrastructure.Jwt;
 using Classified.Shared.Constants;
 using Classified.Shared.DTOs;
+using Classified.Shared.Extensions;
+using Classified.Shared.Infrastructure.MicroserviceJwt;
 using Microsoft.AspNetCore.WebUtilities;
 using System.Net.Http.Json;
 
@@ -9,14 +12,18 @@ namespace AuthService.Infrastructure.UserService
     public class UserServiceClient: IUserServiceClient
     {
         private readonly HttpClient _http;
+        private readonly IMicroserviceJwtProvider _microserviceJwtProvider;
 
-        public UserServiceClient(HttpClient http)
+        public UserServiceClient(HttpClient http, IMicroserviceJwtProvider microserviceJwtProvider)
         {
             _http = http;
+            _microserviceJwtProvider = microserviceJwtProvider;
         }
 
         public async Task<VerifiedUserDto?> VerifyUserCredentialsAsync(string phoneOrEmail, string password)
         {
+            _http.SetServerJwt(_microserviceJwtProvider, InternalServices.AuthService, InternalServices.UserService);
+
             var queryParams = new Dictionary<string, string?>
             {
                 { "phoneOrEmail", phoneOrEmail },
@@ -33,6 +40,8 @@ namespace AuthService.Infrastructure.UserService
 
         public async Task<VerifiedUserDto?> GetVerifiedUserDtoByIdAsync(string userId)
         {
+            _http.SetServerJwt(_microserviceJwtProvider, InternalServices.AuthService, InternalServices.UserService);
+
             var queryParams = new Dictionary<string, string?>
             {
                 { "userId", userId },
@@ -49,6 +58,8 @@ namespace AuthService.Infrastructure.UserService
 
         public async Task<UserOAuthAccountDto?> GetUserOAuthAccountByProviderAndProviderUserIdAsync(OAuthProvider provider,string providerUserId)
         {
+            _http.SetServerJwt(_microserviceJwtProvider, InternalServices.AuthService, InternalServices.UserService);
+
             var queryParams = new Dictionary<string, string?>
             {
                 { "providerName", provider.ToString() },
@@ -70,6 +81,8 @@ namespace AuthService.Infrastructure.UserService
         
         public async Task<string?> GetUserIdByEmailAsync(string email)
         {
+            _http.SetServerJwt(_microserviceJwtProvider, InternalServices.AuthService, InternalServices.UserService);
+
             var queryParams = new Dictionary<string, string?>
             {
                 { "email", email },
@@ -86,6 +99,8 @@ namespace AuthService.Infrastructure.UserService
 
         public async Task ConnectOauthAccountToExistingUserAsync(OAuthProvider provider, string providerId, Guid userId)
         {
+            _http.SetServerJwt(_microserviceJwtProvider, InternalServices.AuthService, InternalServices.UserService);
+
             var request = new
             {
                 Provider = provider,

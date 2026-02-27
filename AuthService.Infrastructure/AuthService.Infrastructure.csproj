@@ -17,4 +17,8 @@
     <ProjectReference Include="..\AuthService.Persistance\AuthService.Persistance.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="DeviceInfoService\" />
+  </ItemGroup>
+
 </Project>

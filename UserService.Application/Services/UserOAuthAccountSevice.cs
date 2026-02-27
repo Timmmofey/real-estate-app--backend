@@ -1,6 +1,5 @@
 ﻿using Classified.Shared.Constants;
 using Classified.Shared.DTOs;
-using System.Threading;
 using UserService.Application.Exeptions;
 using UserService.Domain.Abstactions;
 using UserService.Domain.Models;
