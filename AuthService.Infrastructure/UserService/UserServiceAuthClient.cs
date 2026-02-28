@@ -1,5 +1,4 @@
 ﻿using AuthService.Domain.Abstactions;
-using AuthService.Infrastructure.Jwt;
 using Classified.Shared.Constants;
 using Classified.Shared.DTOs;
 using Classified.Shared.Extensions;

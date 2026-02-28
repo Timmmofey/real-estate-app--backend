@@ -11,13 +11,10 @@ namespace Classified.Shared.Infrastructure.S3.Service
     public class SufyStorageService : IFileStorageService
     {
         private readonly IAmazonS3 _s3Client;
-        private readonly string _serviceURL = "https://mos.us-south-1.sufybkt.com";
-        private readonly string _bucketName = "classified";
-        private readonly string _signatureVersion = "2";
-        private readonly bool _forcePathStyle = true;
-        private readonly bool _useHttp = true;
+        private readonly string _serviceURL;
+        private readonly string _bucketName;
 
-        private readonly IConfiguration _config = LibraryConfiguration.BuildConfiguration();
+        private readonly IConfiguration _config;
 
         // Поддерживаемые форматы изображений
         private readonly string[] _imageExtensions = {
@@ -25,17 +22,21 @@ namespace Classified.Shared.Infrastructure.S3.Service
             ".webp", ".svg", ".heif", ".heic", ".raw", ".ico"
         };
 
-        public SufyStorageService()
+        public SufyStorageService(IConfiguration config)
         {
+            _config = config;
+
             var s3Config = new AmazonS3Config
             {
-                ServiceURL = _serviceURL,
-                ForcePathStyle = _forcePathStyle,
-                UseHttp = _useHttp,
-                SignatureVersion = _signatureVersion
+                ServiceURL = _config["S3:serviceURL"],
+                ForcePathStyle = _config.GetValue<bool>("S3:forcePathStyle"),
+                UseHttp = _config.GetValue<bool>("S3:useHttp"),
+                SignatureVersion = _config["S3:signatureVersion"]
             };
 
             _s3Client = new AmazonS3Client(_config["S3:accessKey"], _config["S3:secretKey"], s3Config);
+            _serviceURL = _config["S3:serviceURL"]!;
+            _bucketName = _config["S3:bucketName"]!;
         }
 
         private static readonly Dictionary<string, string[]> AllowedExtensions = new()

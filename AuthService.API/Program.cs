@@ -66,7 +66,7 @@ builder.Services.AddScoped<IRedisService, RedisService>();
 builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect("localhost:6379"));
 
 //Email service
-builder.Services.AddEmailService(configuration);
+builder.Services.AddEmailService();
 
 //JwtAuth
 builder.Services.AddJwtAuthentication(configuration);

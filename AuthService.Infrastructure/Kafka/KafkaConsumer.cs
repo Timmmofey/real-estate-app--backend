@@ -1,4 +1,5 @@
 ﻿using AuthService.Domain.Abstactions;
+using Classified.Shared.Constants;
 using Confluent.Kafka;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -17,7 +18,7 @@ namespace AuthService.Infrastructure.Kafka
         protected override  Task ExecuteAsync(CancellationToken stoppingToken)
         {
             return Task.Run(() => { 
-                _ = ConsumeAsync("recalled-sessions-topic", stoppingToken);
+                _ = ConsumeAsync(KafkaTopic.RecalledSessionsTopic, stoppingToken);
             }, stoppingToken);
         }
 

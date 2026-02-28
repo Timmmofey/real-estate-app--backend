@@ -47,7 +47,7 @@ builder.Services.AddDbContext<UserServicePostgreDbContext>(
         options.UseNpgsql(configuration.GetConnectionString(nameof(UserServicePostgreDbContext)));
     }
 );
-builder.Services.AddSufyS3Storage(builder.Configuration);
+builder.Services.AddSufyS3Storage();
 
 //
 builder.Services.AddApplicationServices();
@@ -57,7 +57,7 @@ builder.Services.AddValidatorsFromAssembly(typeof(AssemblyMarker).Assembly);
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 //builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddEmailService(builder.Configuration);
+builder.Services.AddEmailService();
 
 builder.Services.AddJwtAuthentication(configuration);
 builder.Services.AddServerJwtAuthentication(builder.Configuration);

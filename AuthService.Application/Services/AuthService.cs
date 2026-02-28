@@ -2,6 +2,7 @@
 using AuthService.Domain.Abstactions;
 using AuthService.Domain.DTOs;
 using AuthService.Domain.Models;
+using AuthService.Domain.Consts;
 using Classified.Shared.Constants;
 using Classified.Shared.DTOs;
 using Classified.Shared.Infrastructure.EmailService;
@@ -10,6 +11,7 @@ using DeviceDetectorNET;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 using UAParser;
+
 
 namespace AuthService.Application.Services
 {
@@ -75,7 +77,7 @@ namespace AuthService.Application.Services
                 try
                 {
                     await _redisService.SetAsync(
-                        key: $"two-factor-auth:{user.Id}",
+                        key: $"{RedisKey.TwoFactorAuth}:{user.Id}",
                         value: System.Text.Json.JsonSerializer.Serialize(redisData),
                         expiration: TimeSpan.FromMinutes(5)
                     );
@@ -141,7 +143,7 @@ namespace AuthService.Application.Services
                 try
                 {
                     await _redisService.SetAsync(
-                        key: $"two-factor-auth:{user.Id}",
+                        key: $"{RedisKey.TwoFactorAuth}:{user.Id}",
                         value: System.Text.Json.JsonSerializer.Serialize(redisData),
                         expiration: TimeSpan.FromMinutes(5)
                     );
@@ -185,7 +187,7 @@ namespace AuthService.Application.Services
 
         public async Task<TokenResponseDto?> LoginViaTWoFactorAuthentication(string userId, string deviceId, string code)
         {
-            var redisValue = await _redisService.GetAsync($"two-factor-auth:{userId}");
+            var redisValue = await _redisService.GetAsync($"{RedisKey.TwoFactorAuth}:{userId}");
 
             if (string.IsNullOrEmpty(redisValue))
                 throw new Exception("There is no code for this user");

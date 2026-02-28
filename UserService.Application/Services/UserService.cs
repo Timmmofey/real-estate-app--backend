@@ -13,6 +13,7 @@ using Classified.Shared.Infrastructure.EmailService;
 using Newtonsoft.Json;
 using UserService.Infrastructure.AuthService;
 using UserService.Application.Exeptions;
+using UserService.Domain.Consts;
 
 namespace UserService.Application.Services
 {
@@ -45,7 +46,7 @@ namespace UserService.Application.Services
         {
             await FindExistingOrResentlyDeletedUser(dto.Email, dto.PhoneNumber);
 
-            string? personMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, "userProfileImages");
+            string? personMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, S3FolderName.UserProfileImages);
 
 
             var userId = Guid.NewGuid();
@@ -85,7 +86,7 @@ namespace UserService.Application.Services
         {
             await FindExistingOrResentlyDeletedUser(dto.Email, dto.PhoneNumber);
 
-            string? companyMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, "userProfileImages");
+            string? companyMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, S3FolderName.UserProfileImages);
 
 
             var userId = Guid.NewGuid();
@@ -130,7 +131,7 @@ namespace UserService.Application.Services
 
             string? personMainPhotoUrl = null;
             if (dto.MainPhoto != null)
-                personMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, "userProfileImages");
+                personMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, S3FolderName.UserProfileImages);
 
             var userId = Guid.NewGuid();
             string? hashedPassword = null;
@@ -200,7 +201,7 @@ namespace UserService.Application.Services
 
             string? companyMainPhotoUrl = null;
             if (dto.MainPhoto != null)
-                companyMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, "userProfileImages");
+                companyMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, S3FolderName.UserProfileImages);
 
             var userId = Guid.NewGuid();
             string? hashedPassword = null;
@@ -313,7 +314,7 @@ namespace UserService.Application.Services
             }
             else if (updatedProfile.MainPhoto != null)
             {
-                newPhotoUrl = await UploadPhotoAsync(updatedProfile.MainPhoto, "userProfileImages");
+                newPhotoUrl = await UploadPhotoAsync(updatedProfile.MainPhoto, S3FolderName.UserProfileImages);
             }
 
             // Когда новое фото загружено или удалено — удаляем старое
@@ -343,7 +344,7 @@ namespace UserService.Application.Services
             }
             else if (updatedProfile.MainPhoto != null)
             {
-                newPhotoUrl = await UploadPhotoAsync(updatedProfile.MainPhoto, "userProfileImages");
+                newPhotoUrl = await UploadPhotoAsync(updatedProfile.MainPhoto, S3FolderName.UserProfileImages);
             }
 
             // Когда новое фото загружено или удалено — удаляем старое
@@ -364,7 +365,7 @@ namespace UserService.Application.Services
         {
             try
             {
-                await _kafkaProducer.ProduceAsync("recalled-sessions-topic", new Message<string, string>
+                await _kafkaProducer.ProduceAsync(KafkaTopic.RecalledSessionsTopic, new Message<string, string>
                 {
                     Key = Guid.NewGuid().ToString(),
                     Value = id.ToString()
@@ -556,7 +557,7 @@ namespace UserService.Application.Services
             };
 
             await _redisService.SetAsync(
-                key: $"toggle-two-step-auth-code:{userId}",
+                key: $"{RedisKey.ToggleTwoStepAuthCaode}:{userId}",
                 value: System.Text.Json.JsonSerializer.Serialize(redisData),
                 expiration: TimeSpan.FromMinutes(5)
             );
@@ -566,7 +567,7 @@ namespace UserService.Application.Services
 
         public async Task ToggleTwoFactorAuthentication(Guid userId, string verificationCode)
         {
-            var redisValue = await _redisService.GetAsync($"toggle-two-step-auth-code:{userId}");
+            var redisValue = await _redisService.GetAsync($"{RedisKey.ToggleTwoStepAuthCaode}:{userId}");
 
             if (string.IsNullOrEmpty(redisValue))
                 throw new Exception("Verification code expired or not found");
@@ -599,7 +600,7 @@ namespace UserService.Application.Services
             };
 
             await _redisService.SetAsync(
-                key: $"pwd-reset:{email}",
+                key: $"{RedisKey.PasswordReset}:{email}",
                 value: System.Text.Json.JsonSerializer.Serialize(redisData),
                 expiration: TimeSpan.FromMinutes(5)
             );
@@ -609,7 +610,7 @@ namespace UserService.Application.Services
 
         public async Task<string> GetPasswordResetTokenViaEmail(GetPasswordResetTokenDto dto)
         {
-            var redisValue = await _redisService.GetAsync($"pwd-reset:{dto.Email}");
+            var redisValue = await _redisService.GetAsync($"{RedisKey.PasswordReset}:{dto.Email}");
 
             if (string.IsNullOrEmpty(redisValue))
                 throw new  Exception("Verification code expired or not found");
@@ -628,7 +629,7 @@ namespace UserService.Application.Services
                 throw new Exception("Failed to generate reset password token");
 
             // Удаляем временный код из Redis
-            await _redisService.DeleteAsync($"pwd-reset:{dto.Email}");
+            await _redisService.DeleteAsync($"{RedisKey.PasswordReset}:{dto.Email}");
 
             return resetPasswordToken;
         }
@@ -644,7 +645,7 @@ namespace UserService.Application.Services
             var redisData = new { Code = emailResetCode, UserId = userId };
 
             await _redisService.SetAsync(
-                key: $"current-email-cofirmation-code:{userId}",
+                key: $"{RedisKey.CurrentEmailConfirmationCode}:{userId}",
                 value: System.Text.Json.JsonSerializer.Serialize(redisData),
                 expiration: TimeSpan.FromMinutes(5)
             );
@@ -654,7 +655,7 @@ namespace UserService.Application.Services
 
         public async Task<string> getResetEmailToken(Guid userId, string verificationCode) 
         {
-            var redisValue = await _redisService.GetAsync($"current-email-cofirmation-code:{userId}");
+            var redisValue = await _redisService.GetAsync($"{RedisKey.CurrentEmailConfirmationCode}:{userId}");
 
             if (string.IsNullOrEmpty(redisValue))
                 throw new Exception("Verification code expired or not found");
@@ -671,7 +672,7 @@ namespace UserService.Application.Services
             if (string.IsNullOrEmpty(resetEmailToken))
                 throw new Exception("Failed to generate request new email confirmation token");
 
-            await _redisService.DeleteAsync($"current-email-cofirmation-code:{userId}");
+            await _redisService.DeleteAsync($"{RedisKey.CurrentEmailConfirmationCode}:{userId}");
 
             return resetEmailToken;
         }
@@ -687,7 +688,7 @@ namespace UserService.Application.Services
             var redisData = new { Code = newEmailCOfirmationCode, Email = email };
 
             await _redisService.SetAsync(
-                key: $"new-email-cofirmation-code:{userId}",
+                key: $"{RedisKey.NewEmailCofirmationCode}:{userId}",
                 value: System.Text.Json.JsonSerializer.Serialize(redisData),
                 expiration: TimeSpan.FromMinutes(5)
             );
@@ -698,7 +699,7 @@ namespace UserService.Application.Services
 
         public async Task<string> confirmNewEmail(Guid userId, string verificationCode)
         {
-            var redisValue = await _redisService.GetAsync($"new-email-cofirmation-code:{userId}");
+            var redisValue = await _redisService.GetAsync($"{RedisKey.NewEmailCofirmationCode}:{userId}");
 
             if (string.IsNullOrEmpty(redisValue))
                 throw new Exception("Verification code expired or not found");
@@ -716,7 +717,7 @@ namespace UserService.Application.Services
             if (string.IsNullOrEmpty(resetEmailToken))
                 throw new Exception("Failed to generate reset password token");
 
-            await _redisService.DeleteAsync($"new-email-cofirmation-code:{userId}");
+            await _redisService.DeleteAsync($"{RedisKey.NewEmailCofirmationCode}:{userId}");
 
             return resetEmailToken;
         }

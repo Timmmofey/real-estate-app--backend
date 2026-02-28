@@ -7,7 +7,7 @@ namespace Classified.Shared.Infrastructure.S3.Extensions
 {
     public static class ServiceCollectionExtensions
     {
-        public static IServiceCollection AddSufyS3Storage(this IServiceCollection services, IConfiguration configuration)
+        public static IServiceCollection AddSufyS3Storage(this IServiceCollection services)
         {
    
             services.AddSingleton<IFileStorageService, SufyStorageService>();
