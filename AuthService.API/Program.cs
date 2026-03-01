@@ -1,5 +1,6 @@
 using AuthService.Application;
 using AuthService.Domain.Abstactions;
+using AuthService.Infrastructure.IpGeoService;
 using AuthService.Infrastructure.Jwt;
 using AuthService.Infrastructure.Kafka;
 using AuthService.Infrastructure.UserService;
@@ -68,6 +69,15 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Conn
 //Email service
 builder.Services.AddEmailService();
 
+//Ip GeoService
+builder.Services.AddSingleton<IIpGeoService, IpGeoService>();
+
+//Кеш для Ip GeoService
+builder.Services.AddMemoryCache(options =>
+{
+    options.SizeLimit = 150_000; 
+});
+
 //JwtAuth
 builder.Services.AddJwtAuthentication(configuration);
 builder.Services.AddServerJwtAuthentication(builder.Configuration);
@@ -85,8 +95,8 @@ builder.Services
     .AddCookie()
     .AddGoogle(options =>
     {
-        options.ClientId = configuration["Google:ClientId"];
-        options.ClientSecret = configuration["Google:ClientSecret"];
+        options.ClientId = configuration["Google:ClientId"]!;
+        options.ClientSecret = configuration["Google:ClientSecret"]!;
 
         options.Scope.Add("profile");
         options.Scope.Add("email");

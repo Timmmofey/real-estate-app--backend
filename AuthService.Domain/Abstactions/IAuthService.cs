@@ -16,7 +16,8 @@ namespace AuthService.Domain.Abstactions
         Task<string?> GetUserIdByEmailAsync(string email);
         Task<UserOAuthAccountDto?> GetUserOAuthAccountByProviderAndProviderUserIdAsync(OAuthProvider provider, string providerUserId);
         Task LinkOAuthAccountAsync(OAuthProvider provider, string providerId, Guid userId);
-        Task<TokenResponseDto> RefreshAsync(Guid refreshToken, Guid deviceId);
+        //Task<TokenResponseDto> RefreshAsync(Guid refreshToken, Guid deviceId);
+        Task<TokenResponseDto> RefreshAndRorateAsync(Guid refreshToken, Guid deviceId, string prevIp);
         Task LogoutAync(Guid deviceId);
         Task LogoutAllAsync(Guid userId);
         Task<bool> TerminateSession(Guid userId, Guid id);

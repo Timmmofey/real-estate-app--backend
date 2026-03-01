@@ -49,7 +49,6 @@ namespace UserService.Persistance.PostgreSQL.Repositories
 
             var userEntity = MapToUserEntity(user);
             await _context.Users.AddAsync(userEntity);
-            // Не делаем SaveChangesAsync и не открываем транзакцию
         }
 
         public async Task AddPersonProfileAsync(PersonProfile profile)
@@ -370,7 +369,7 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             return email;
         }
 
-        public async Task<string> GetPasswordHashByUserId(Guid userId)
+        public async Task<string?> GetPasswordHashByUserId(Guid userId)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) throw new InvalidOperationException("User not found");
@@ -488,10 +487,10 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             {
                 UserId = profile.UserId,
                 Name = profile.Name,
-                Country = country,
-                Region = region,
-                Settlement = settlement,
-                ZipCode = zipCode,
+                Country = country!,
+                Region = region!,
+                Settlement = settlement!,
+                ZipCode = zipCode!,
                 RegistrationAdress = profile.RegistrationAdress,
                 СompanyRegistrationNumber = profile.СompanyRegistrationNumber,
                 EstimatedAt = profile.EstimatedAt,

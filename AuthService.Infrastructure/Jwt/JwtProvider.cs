@@ -35,12 +35,13 @@ namespace AuthService.Infrastructure.Jwt
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        public string GenerateRefreshToken(Guid refreshtoken)
+        public string GenerateRefreshToken(Guid refreshtoken, string ip)
         {
             var claims = new[]
             {
                 new Claim("token", refreshtoken.ToString()),
-                new Claim("type", JwtTokenType.Refresh.ToString())
+                new Claim("type", JwtTokenType.Refresh.ToString()),
+                new Claim("ip", ip)
             };
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

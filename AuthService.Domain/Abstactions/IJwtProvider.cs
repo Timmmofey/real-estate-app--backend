@@ -5,7 +5,7 @@ namespace AuthService.Domain.Abstactions
     public interface IJwtProvider
     {
         string GenerateAccessToken(Guid userId, UserRole role, Guid sessionId);
-        string GenerateRefreshToken(Guid refreshtoken);
+        string GenerateRefreshToken(Guid refreshtoken, string ip);
         string GenerateRestoreToken(Guid Id);
         public string GenerateDeviceToken(Guid deviceId);
         public string GenerateResetPasswordResetToken(Guid userId);

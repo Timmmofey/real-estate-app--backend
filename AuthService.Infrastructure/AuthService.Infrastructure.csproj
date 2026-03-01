@@ -9,16 +9,14 @@
   <ItemGroup>
     <PackageReference Include="Confluent.Kafka" Version="2.12.0" />
     <PackageReference Include="DeviceDetector.NET" Version="6.4.7" />
+    <PackageReference Include="MaxMind.Db" Version="4.3.4" />
+    <PackageReference Include="MaxMind.GeoIP2" Version="5.4.1" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AuthService.Domain\AuthService.Domain.csproj" />
     <ProjectReference Include="..\AuthService.Persistance\AuthService.Persistance.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="DeviceInfoService\" />
   </ItemGroup>
 
 </Project>

@@ -4,6 +4,7 @@ using AuthService.Persistance.Entities;
 using Classified.Shared.Constants;
 using Classified.Shared.Entities;
 using Microsoft.EntityFrameworkCore;
+using System.Net;
 
 namespace AuthService.Persistance.Repositories
 {
@@ -79,6 +80,43 @@ namespace AuthService.Persistance.Repositories
             }
 
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<Session?> UpdateAndRotateRefreshTokenAsync(Guid oldRt, Guid deviceId, Guid newRefreshToken, string? deviceName = null, DeviceType? deviceType = null, string? ipAddress = null, string? country = null, string? city = null)
+        {
+            var existingEntity = await _context.Sessions
+                .FirstOrDefaultAsync(srt => srt.DeviceId == deviceId && srt.Token == oldRt);
+
+            if (existingEntity == null)
+                throw new Exception($"User Refresh Token has not been found");
+
+            existingEntity.Token = newRefreshToken;
+
+            if(deviceName != null)
+                existingEntity.DeviceName = deviceName;
+
+            if (ipAddress != null)
+                existingEntity.IpAddress = ipAddress;
+
+            if (deviceType != null)
+                existingEntity.DeviceType = deviceType;
+
+            if(country != null)
+                existingEntity.Country = country;
+
+            if(city != null)    
+                existingEntity.Settlemnet = city;
+
+            await _context.SaveChangesAsync();
+
+            var (session, error) = Session.Create(existingEntity.Id, existingEntity.UserId, (UserRole)existingEntity.Role, existingEntity.Token, existingEntity.DeviceId, existingEntity.DeviceName, existingEntity.DeviceType, existingEntity.IpAddress, existingEntity.Country, existingEntity.Settlemnet, existingEntity.CreatedAt, existingEntity.ExpiresAt);
+
+            if (session == null)
+            {
+                throw new Exception($"User Refresh Token is invalid: {error}");
+            }
+
+            return session;
         }
 
 

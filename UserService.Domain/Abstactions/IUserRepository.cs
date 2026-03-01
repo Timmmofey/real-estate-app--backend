@@ -22,7 +22,7 @@ namespace UserService.Domain.Abstactions
         Task<CompanyProfile?> GetCompanyUserInfoByIdAsync(Guid id);
         Task<Guid?> GetUserIdByEmailAsync(string email);
         Task<string?> GetUserEmailById(Guid id);
-        Task<string> GetPasswordHashByUserId(Guid userId);
+        Task<string?> GetPasswordHashByUserId(Guid userId);
         Task ToggleTwoFactorAuthentication(Guid userId);
     }
 }

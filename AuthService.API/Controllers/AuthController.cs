@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
 using System.IdentityModel.Tokens.Jwt;
@@ -264,12 +265,15 @@ namespace AuthService.API.Controllers
             return Redirect(registerRedirect);
         }
 
-
-        //[AuthorizeToken(JwtTokenType.Refresh)]
         [ValidateToken(JwtTokenType.Refresh)]
         [HttpPost("Refresh")]
-        public async Task<IActionResult> Refresh()
+        public async Task<IActionResult> Refresh1()
         {
+            var currentIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+            if (currentIp == null)
+                return Unauthorized("Ip is invalid.");
+
             // 1. Чтение device-token
             Guid deviceId;
 
@@ -289,14 +293,20 @@ namespace AuthService.API.Controllers
 
             var refreshJwt = handler.ReadJwtToken(refreshTokenString);
             var refreshTokenClaim = refreshJwt.Claims.FirstOrDefault(c => c.Type == "token")?.Value;
-            
+            var ipClaim = refreshJwt.Claims.FirstOrDefault(c => c.Type == "ip")?.Value;
+
+
             if (!Guid.TryParse(refreshTokenClaim, out refreshToken))
                 return Unauthorized("Refresh token claim is invalid.");
+
+            if(ipClaim == null)
+                return Unauthorized("Refresh token claim is invalid.");
+
 
             try
             {
                 // 3. Получение новых токенов
-                var tokens = await _authService.RefreshAsync(refreshToken, deviceId);
+                var tokens = await _authService.RefreshAndRorateAsync(refreshToken, deviceId, ipClaim);
 
                 CookieHepler.SetCookie(Response, CookieNames.Auth, tokens.AccessToken, minutes: 10);
                 CookieHepler.SetCookie(Response, CookieNames.Refresh, tokens.RefreshToken, days: 150);

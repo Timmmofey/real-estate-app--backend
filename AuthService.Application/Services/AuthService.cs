@@ -1,8 +1,9 @@
 ﻿using AuthService.Application.Exceptions;
 using AuthService.Domain.Abstactions;
+using AuthService.Domain.Consts;
 using AuthService.Domain.DTOs;
 using AuthService.Domain.Models;
-using AuthService.Domain.Consts;
+using AuthService.Infrastructure.IpGeoService;
 using Classified.Shared.Constants;
 using Classified.Shared.DTOs;
 using Classified.Shared.Infrastructure.EmailService;
@@ -23,9 +24,9 @@ namespace AuthService.Application.Services
         private readonly IHttpContextAccessor _http;
         private readonly IRedisService _redisService;
         private readonly IEmailService _emailService;
+        private readonly IIpGeoService _ipGeoService;
 
-
-        public AuthService(IRefreshTokenRepository refreshTokenRepository, IUserServiceClient userServiceClient, IJwtProvider jwtProvider, IHttpContextAccessor http, IRedisService redisService, IEmailService emailService)
+        public AuthService(IRefreshTokenRepository refreshTokenRepository, IUserServiceClient userServiceClient, IJwtProvider jwtProvider, IHttpContextAccessor http, IRedisService redisService, IEmailService emailService, IIpGeoService ipGeoService)
         {
             _refreshTokenRepository = refreshTokenRepository;
             _userServiceClient = userServiceClient;
@@ -33,6 +34,7 @@ namespace AuthService.Application.Services
             _http = http;
             _redisService = redisService;
             _emailService = emailService;
+            _ipGeoService = ipGeoService;
         }
 
         public async Task<(TokenResponseDto?, string?, string?)> LoginAsync(string phoneOrEmail, string password, Guid deviceId)
@@ -206,40 +208,33 @@ namespace AuthService.Application.Services
             return tokens;
         }
 
-        public async Task<TokenResponseDto> RefreshAsync(Guid refreshToken, Guid deviceId)
+        public async Task<TokenResponseDto> RefreshAndRorateAsync(Guid refreshToken, Guid deviceId, string prevIp)
         {
-            var session = await _refreshTokenRepository.FindSessionByRefreshTokenAndDeviceId(refreshToken, deviceId);
+            var currentIp = _http.HttpContext?.Connection.RemoteIpAddress?.ToString();
+            if (currentIp == null)
+                throw new UnauthorizedAccessException("Ip does not exist");
 
-            if (session == null) throw new UnauthorizedAccessException("Session does not exist");
+            string? deviceName = null;
+            DeviceType? deviceType = null;
+            string? ipAddress = null;
+            string? country = null;
+            string? city = null;
 
-  
-            var accessToken = _jwtProvider.GenerateAccessToken(session.UserId, session.Role, session.Id);
-            var newrefreshToken = Guid.NewGuid();
-            var deviceToken = _jwtProvider.GenerateDeviceToken(session.DeviceId);
+            if (prevIp != currentIp)
+            {
+                (deviceName, deviceType, ipAddress, country, city) = await GetDeviceInfo();
+            }
 
-            var (deviceName, deviceType, ipAddress, country, city) = await GetDeviceInfo();
+            var newRefreshTokenGuid = Guid.NewGuid();
 
-
-            var (refreshTokenObj, error) = Session.Create(
-                session.Id,
-                session.UserId,
-                session.Role,
-                newrefreshToken,
-                deviceId,
-                deviceName,
-                deviceType,
-                ipAddress,
-                country,
-                city,
-                null,
-                null
-            );
+            var refreshTokenObj = await _refreshTokenRepository.UpdateAndRotateRefreshTokenAsync(refreshToken, deviceId, newRefreshTokenGuid, deviceName, deviceType, ipAddress, country, city);
 
             if (refreshTokenObj == null)
-                throw new Exception($"Refresh token creation failed: {error}");
-            var newRefreshToken = _jwtProvider.GenerateRefreshToken(newrefreshToken);
+                throw new Exception($"Refresh token creation failed");
 
-            await _refreshTokenRepository.AddOrUpdateRefreshTokenAsync(refreshTokenObj);
+            var newRefreshToken = _jwtProvider.GenerateRefreshToken(newRefreshTokenGuid, currentIp);
+            var deviceToken = _jwtProvider.GenerateDeviceToken(refreshTokenObj.DeviceId);
+            var accessToken = _jwtProvider.GenerateAccessToken(refreshTokenObj.UserId, refreshTokenObj.Role, refreshTokenObj.Id);
 
             return new TokenResponseDto
             {
@@ -248,6 +243,57 @@ namespace AuthService.Application.Services
                 DeviceToken = deviceToken
             };
         }
+
+        // <summary>
+        // РЕРЕШ С ПОСТОЯННОЙ СМЕНОЙ IP ДЛЯ ТЕСТОВ НА ЛОКАЛКЕ
+        // </summary>
+        
+        //public async Task<TokenResponseDto> RefreshAndRorateAsync(Guid refreshToken, Guid deviceId, string prevIp)
+        //{
+        //    string? deviceName;
+        //    DeviceType? deviceType;
+        //    string? ipAddress;
+        //    string? country;
+        //    string? city;
+
+        //    (deviceName, deviceType, ipAddress, country, city) =
+        //        await GetDeviceInfo(prevIp);
+
+        //    var newRefreshTokenGuid = Guid.NewGuid();
+
+        //    var refreshTokenObj =
+        //        await _refreshTokenRepository.UpdateAndRotateRefreshTokenAsync(
+        //            refreshToken,
+        //            deviceId,
+        //            newRefreshTokenGuid,
+        //            deviceName,
+        //            deviceType,
+        //            ipAddress,
+        //            country,
+        //            city);
+
+        //    if (refreshTokenObj == null)
+        //        throw new Exception("Refresh token creation failed");
+
+        //    var newRefreshToken =
+        //        _jwtProvider.GenerateRefreshToken(newRefreshTokenGuid, ipAddress);
+
+        //    var deviceToken =
+        //        _jwtProvider.GenerateDeviceToken(refreshTokenObj.DeviceId);
+
+        //    var accessToken =
+        //        _jwtProvider.GenerateAccessToken(
+        //            refreshTokenObj.UserId,
+        //            refreshTokenObj.Role,
+        //            refreshTokenObj.Id);
+
+        //    return new TokenResponseDto
+        //    {
+        //        AccessToken = accessToken,
+        //        RefreshToken = newRefreshToken,
+        //        DeviceToken = deviceToken
+        //    };
+        //}
 
         public async Task LogoutAync(Guid deviceId) 
         {
@@ -296,7 +342,7 @@ namespace AuthService.Application.Services
         ///
         //////////////////////////////////
 
-        private async Task<(string DeviceName, DeviceType? DeviceType, string? IpAddress, string? Country, string? City)> GetDeviceInfo()
+        private async Task<(string DeviceName, DeviceType? DeviceType, string? IpAddress, string? Country, string? City)> GetDeviceInfo(string? prevIp = null)
         {
             var context = _http.HttpContext!;
             var uaString = context.Request.Headers["User-Agent"].ToString();
@@ -322,39 +368,54 @@ namespace AuthService.Application.Services
             else if (dd.IsTv())
                 deviceType = DeviceType.SmartTv;
 
-
-            string? country = null;
-            string? city = null;
-
-            
+            string? countryIso = null;
+            string? countryName = null;
+            string? region = null;
+            string? cityName = null;
+         
             if (!string.IsNullOrEmpty(ipAddress))
             {
+                bool testIpCahge = false;
 
-                if (ipAddress == "127.0.0.1" || ipAddress == "::1")
+                if (testIpCahge)
                 {
-                    ipAddress = "104.196.181.192"; // пусть вместо локал хоста будет, хоть увидим как апи определяет
+                    if (prevIp == null)
+                    {
+                        ipAddress = "104.196.180.192"; // первый заход
+                    }
+                    else if (prevIp == "104.196.180.192")
+                    {
+                        ipAddress = "23.246.192.1";
+                    }
+                    else if (prevIp == "23.246.192.1")
+                    {
+                        ipAddress = "104.196.180.192";
+                    }
+                    else
+                    {
+                        ipAddress = "104.196.180.192";
+                    }
+                } else
+                {
+                    if (ipAddress == "127.0.0.1" || ipAddress == "::1")
+                    {
+                        ipAddress = "104.196.181.192"; // пусть вместо локал хоста будет, хоть увидим как апи определяет
+                    }
                 }
 
-                try
-                {
-                    using var http = new HttpClient();
-                    var response = await http.GetStringAsync($"http://ip-api.com/json/{ipAddress}");
-                    var data = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(response);
-                    if (data.TryGetProperty("country", out var countryProp))
-                        country = countryProp.GetString();
-                    if (data.TryGetProperty("city", out var cityProp))
-                        city = cityProp.GetString();
-                }
-                catch
-                {
-                }
+                (countryIso, countryName, region, cityName, _, _) = await _ipGeoService.LookupAsync(ipAddress);
+
             }
 
-            return (deviceName, deviceType, ipAddress, country, city);
+            return (deviceName, deviceType, ipAddress, countryName, cityName);
         }
 
         private async Task<TokenResponseDto> GenerateTokensAfterLogin(Guid userId, UserRole role, Guid deviceId)
         {
+            var currentIp = _http.HttpContext?.Connection.RemoteIpAddress?.ToString();
+            if (currentIp == null)
+                throw new UnauthorizedAccessException("Ip does not exist");
+
             var sessionId = Guid.NewGuid();
             var accessToken = _jwtProvider.GenerateAccessToken(userId, role, sessionId);
             var refreshToken = Guid.NewGuid();
@@ -377,7 +438,7 @@ namespace AuthService.Application.Services
                 null
             );
 
-            var clientsRefreshToken = _jwtProvider.GenerateRefreshToken(refreshToken);
+            var clientsRefreshToken = _jwtProvider.GenerateRefreshToken(refreshToken, currentIp);
 
             if (refreshTokenObj == null)
                 throw new Exception($"Refresh token creation failed: {error}");
