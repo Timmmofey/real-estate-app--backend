@@ -58,3 +58,5 @@ publish/
 # Ignore IIS Express config files
 /.vs/
 /UserService.API/Controllers/UsersController.cs
+
+/data/

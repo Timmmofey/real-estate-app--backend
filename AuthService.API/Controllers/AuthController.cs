@@ -146,6 +146,7 @@ namespace AuthService.API.Controllers
 
         }
 
+        [Authorize(AuthenticationSchemes = "GoogleAuthScheme")]
         [HttpGet("google")]
         public IActionResult GoogleLogin()
         {
@@ -154,7 +155,7 @@ namespace AuthService.API.Controllers
                 {
                     RedirectUri = "/api/auth/google-callback"
                 },
-                GoogleDefaults.AuthenticationScheme
+                "GoogleAuthScheme"
             );
         }
 
@@ -163,7 +164,7 @@ namespace AuthService.API.Controllers
         public async Task<IActionResult> GoogleCallback()
         {
             // 1. Получаем результат внешней аутентификации
-            var authResult = await HttpContext.AuthenticateAsync(GoogleDefaults.AuthenticationScheme);
+            var authResult = await HttpContext.AuthenticateAsync("GoogleAuthScheme");
             if (!authResult.Succeeded || authResult.Principal == null)
                 return BadRequest("External authentication failed");
 

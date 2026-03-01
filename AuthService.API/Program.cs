@@ -86,36 +86,32 @@ builder.Services.AddSingleton<IMicroserviceJwtProvider, MicroserviceJwtProvider>
 //Cors
 builder.Services.AddDefaultCors();
 
-builder.Services
-    .AddAuthentication(options =>
+builder.Services.AddAuthentication()
+    .AddCookie("GoogleCookieScheme", options =>
     {
-        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
-    })
-    .AddCookie()
-    .AddGoogle(options =>
-    {
-        options.ClientId = configuration["Google:ClientId"]!;
-        options.ClientSecret = configuration["Google:ClientSecret"]!;
-
-        options.Scope.Add("profile");
-        options.Scope.Add("email");
-
-        options.SaveTokens = true;
-
-        options.Events.OnCreatingTicket = ctx =>
+        options.Events.OnRedirectToLogin = context =>
         {
-            // тут можно логировать или добавл€ть кастомные claimТы
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                // API не редиректим, отдаем 401
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return Task.CompletedTask;
+            }
+            context.Response.Redirect(context.RedirectUri);
             return Task.CompletedTask;
         };
-
+    })
+    .AddGoogle("GoogleAuthScheme", options =>
+    {
+        options.SignInScheme = "GoogleCookieScheme";
+        options.ClientId = configuration["Google:ClientId"]!;
+        options.ClientSecret = configuration["Google:ClientSecret"]!;
+        options.Scope.Add("profile");
+        options.Scope.Add("email");
+        options.SaveTokens = true;
         options.Events.OnRedirectToAuthorizationEndpoint = context =>
         {
-            var redirectUri = context.RedirectUri;
-
-            // добавл€ем prompt=select_account
-            redirectUri += "&prompt=select_account";
-            context.Response.Redirect(redirectUri);
+            context.Response.Redirect(context.RedirectUri + "&prompt=select_account");
             return Task.CompletedTask;
         };
     });

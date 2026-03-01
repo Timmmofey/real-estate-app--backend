@@ -245,19 +245,37 @@ namespace AuthService.Application.Services
         }
 
         // <summary>
-        // РЕРЕШ С ПОСТОЯННОЙ СМЕНОЙ IP ДЛЯ ТЕСТОВ НА ЛОКАЛКЕ
+        // РЕФРЕШ С ПОСТОЯННОЙ СМЕНОЙ IP ДЛЯ ТЕСТОВ НА ЛОКАЛКЕ
         // </summary>
-        
+
         //public async Task<TokenResponseDto> RefreshAndRorateAsync(Guid refreshToken, Guid deviceId, string prevIp)
         //{
         //    string? deviceName;
         //    DeviceType? deviceType;
         //    string? ipAddress;
-        //    string? country;
-        //    string? city;
+        //    string? countryName;
+        //    string? cityName;
 
-        //    (deviceName, deviceType, ipAddress, country, city) =
-        //        await GetDeviceInfo(prevIp);
+
+        //    if (prevIp == null)
+        //    {
+        //        ipAddress = "104.196.180.192";
+        //    }
+        //    else if (prevIp == "104.196.180.192")
+        //    {
+        //        ipAddress = "23.246.192.1";
+        //    }
+        //    else if (prevIp == "23.246.192.1")
+        //    {
+        //        ipAddress = "104.196.180.192";
+        //    }
+        //    else
+        //    {
+        //        ipAddress = "104.196.180.192";
+        //    }
+
+        //    (_, countryName, _, cityName, _, _) = await _ipGeoService.LookupAsync(ipAddress);
+
 
         //    var newRefreshTokenGuid = Guid.NewGuid();
 
@@ -266,11 +284,11 @@ namespace AuthService.Application.Services
         //            refreshToken,
         //            deviceId,
         //            newRefreshTokenGuid,
-        //            deviceName,
-        //            deviceType,
+        //            null,
+        //            null,
         //            ipAddress,
-        //            country,
-        //            city);
+        //            countryName,
+        //            cityName);
 
         //    if (refreshTokenObj == null)
         //        throw new Exception("Refresh token creation failed");
