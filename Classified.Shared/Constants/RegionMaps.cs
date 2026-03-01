@@ -84,6 +84,13 @@
         public static bool IsCountryAllowed(string code) => Countries.ContainsKey(code.ToUpperInvariant());
         public static bool IsRegionAllowed(string country, string regionCode) =>
             Regions.TryGetValue(country.ToUpperInvariant(), out var dict) && dict.ContainsKey(regionCode.ToUpperInvariant());
+
+        public static bool IsCountryOrRegionAllowed(string country, string? regionCode = null)
+        {
+            if (regionCode == null) return IsCountryAllowed(country);
+
+            return Regions.TryGetValue(country.ToUpperInvariant(), out var dict) && dict.ContainsKey(regionCode.ToUpperInvariant());
+        }
         public static string? GetRegionName(string country, string regionCode)
         {
             if (string.IsNullOrEmpty(regionCode)) return null;

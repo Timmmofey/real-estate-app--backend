@@ -1,4 +1,5 @@
 using Classified.Shared.Extensions;
+using Classified.Shared.Extensions.ServerJwtAuth;
 using Classified.Shared.Infrastructure.RedisService;
 using GeoService.Application.Services;
 using GeoService.Domain.Abstractions;
@@ -45,6 +46,9 @@ builder.Services.AddHttpClient<ITranslateServiceClient, TranslateServiceClient>(
 
 //Cors
 builder.Services.AddDefaultCors();
+
+builder.Services.AddServerJwtAuthentication(builder.Configuration);
+
 
 
 var app = builder.Build();

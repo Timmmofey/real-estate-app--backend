@@ -14,6 +14,7 @@ using UserService.Application;
 using UserService.Domain.Abstactions;
 using UserService.Infrastructure;
 using UserService.Infrastructure.AuthService;
+using UserService.Infrastructure.GeoService;
 using UserService.Infrastructure.Kafka;
 using UserService.Persistance.PostgreSQL;
 
@@ -37,6 +38,13 @@ builder.Services.AddHttpClient<IAuthServiceClient, AuthServiceClient>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["AuthService:BaseUrl"]!);
 });
+
+//GeoService
+builder.Services.AddHttpClient<IGeoServiceClient, GeoServiceClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["GeoService:BaseUrl"]!);
+});
+
 
 //Kafka
 builder.Services.AddScoped<IKafkaProducer, KafkaProducer>();

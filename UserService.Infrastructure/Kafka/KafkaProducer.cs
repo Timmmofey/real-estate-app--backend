@@ -6,18 +6,25 @@ namespace UserService.Infrastructure.Kafka
     {
         private readonly IProducer<string, string> _producer;
         public KafkaProducer() {
-            var config = new ConsumerConfig
+            var config = new ProducerConfig
             {
-                GroupId = "recalled-session-group",
                 BootstrapServers = "localhost:9092",
-                AutoOffsetReset = AutoOffsetReset.Earliest
+                MessageTimeoutMs = 3000,
+                SocketTimeoutMs = 3000
             };
             _producer = new ProducerBuilder<string, string>(config).Build();
         }
 
-        public Task ProduceAsync(string topic, Message<string, string> message)
+        public async Task ProduceAsync(string topic, Message<string, string> message)
         {
-           return _producer.ProduceAsync(topic, message);
+            try
+            {
+                await _producer.ProduceAsync(topic, message);
+            }
+            catch (ProduceException<string, string> e)
+            {
+                throw;
+            }
         }
     }
 }

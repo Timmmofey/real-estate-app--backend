@@ -5,12 +5,10 @@ using AuthService.Domain.Consts;
 using AuthService.Domain.DTOs;
 using Classified.Shared.Constants;
 using Classified.Shared.Extensions.Auth;
+using Classified.Shared.Extensions.ServerJwtAuth;
 using Classified.Shared.Functions;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Cors;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
 using System.IdentityModel.Tokens.Jwt;
@@ -401,7 +399,7 @@ namespace AuthService.API.Controllers
             return Ok(sessions);
         }
 
-        [EnableCors("AllowUserService")]
+        [AuthorizeServerJwt(InternalServices.UserService)]
         [HttpGet("get-password-reset-token")]
         public IActionResult getResetPasswordResetToken(string userId)
         {
@@ -409,6 +407,7 @@ namespace AuthService.API.Controllers
             return Ok(resetPasswordJwt);
         }
 
+        [AuthorizeServerJwt(InternalServices.UserService)]
         [HttpGet("get-email-reset-token")]
         public IActionResult getResetEmailResetToken(string userId, string newEmail)
         {
@@ -416,6 +415,7 @@ namespace AuthService.API.Controllers
             return Ok(resetPasswordJwt);
         }
 
+        [AuthorizeServerJwt(InternalServices.UserService)]
         [HttpGet("get-request-new-email-cofirmation-token")]
         public IActionResult getRequestNewEmailCofirmationToken(string userId)
         {

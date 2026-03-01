@@ -14,6 +14,8 @@ using Newtonsoft.Json;
 using UserService.Infrastructure.AuthService;
 using UserService.Application.Exeptions;
 using UserService.Domain.Consts;
+using Microsoft.AspNetCore.Mvc;
+using UserService.Infrastructure.GeoService;
 
 namespace UserService.Application.Services
 {
@@ -27,9 +29,10 @@ namespace UserService.Application.Services
         private readonly IRedisService _redisService;
         private readonly IEmailService _emailService;
         private readonly IAuthServiceClient _authService;
+        private readonly IGeoServiceClient _geoServiceClient;
         private readonly IUnitOfWork _unitOfWork;
 
-        public UserService(IUserRepository userRepository, IPasswordHasher passwordHasher, IFileStorageService fileStorageService, IKafkaProducer kafkaProducer, IRedisService redisService, IEmailService emailService, IAuthServiceClient authService, IUnitOfWork unitOfWork, IUserOAuthAccountRepository userOAuthAccountRepository)
+        public UserService(IUserRepository userRepository, IPasswordHasher passwordHasher, IFileStorageService fileStorageService, IKafkaProducer kafkaProducer, IRedisService redisService, IEmailService emailService, IAuthServiceClient authService, IUnitOfWork unitOfWork, IUserOAuthAccountRepository userOAuthAccountRepository, IGeoServiceClient geoServiceClient)
         {
             _userRepository = userRepository;
             _passwordHasher = passwordHasher;
@@ -39,6 +42,7 @@ namespace UserService.Application.Services
             _emailService = emailService;
             _authService = authService;
             _unitOfWork = unitOfWork;
+            _geoServiceClient = geoServiceClient;
             _userOAuthAccountRepository = userOAuthAccountRepository;
         }
 
@@ -73,6 +77,8 @@ namespace UserService.Application.Services
                 dto.Settlement,
                 dto.ZipCode
             );
+
+            await ValidateAdrress(dto.Country, dto.Region, dto.Settlement);
 
             if (profile == null)
                 throw new Exception(profileError);
@@ -120,6 +126,8 @@ namespace UserService.Application.Services
             if (profile == null)
                 throw new Exception(profileError);
 
+            await ValidateAdrress(dto.Country, dto.Region, dto.Settlement);
+
             await _userRepository.AddCompanyUserAsync(user, profile);
 
             return userId;
@@ -139,7 +147,7 @@ namespace UserService.Application.Services
             if (!string.IsNullOrEmpty(dto.Password))
                 hashedPassword = _passwordHasher.Generate(dto.Password);
 
-            
+            await ValidateAdrress(dto.Country, dto.Region, dto.Settlement);
 
             await _unitOfWork.BeginAsync();
 
@@ -209,6 +217,7 @@ namespace UserService.Application.Services
             if (!string.IsNullOrEmpty(dto.Password))
                 hashedPassword = _passwordHasher.Generate(dto.Password);
 
+            await ValidateAdrress(dto.Country, dto.Region, dto.Settlement);
 
             await _unitOfWork.BeginAsync();
 
@@ -323,6 +332,9 @@ namespace UserService.Application.Services
                 await DeletePhotoAsync(prevMainPhotoUrl);
             }
 
+            await ValidateAdrress(updatedProfile.Country, updatedProfile.Region, updatedProfile.Settlement);
+
+
             await _userRepository.PatchPersonProfileAsync(userId, updatedProfile?.FirstName, updatedProfile?.LastName, newPhotoUrl, updatedProfile?.Country, updatedProfile?.Region, updatedProfile?.Settlement, updatedProfile?.ZipCode);
         }
 
@@ -353,6 +365,8 @@ namespace UserService.Application.Services
                 await DeletePhotoAsync(prevMainPhotoUrl);
             }
 
+            await ValidateAdrress(updatedProfile.Country, updatedProfile.Region, updatedProfile.Settlement);
+
             await _userRepository.PatchCompanyProfileAsync(userId, updatedProfile?.Name, updatedProfile?.Country, updatedProfile?.Region, updatedProfile?.Settlement, updatedProfile?.ZipCode, updatedProfile?.RegistrationAdress, updatedProfile?.СompanyRegistrationNumber, updatedProfile?.EstimatedAt, newPhotoUrl, updatedProfile?.Description);
         }
 
@@ -371,9 +385,9 @@ namespace UserService.Application.Services
                     Value = id.ToString()
                 });
             }
-            catch (InvalidOperationException e)
+            catch
             {
-                throw new Exception(e.Message);
+                throw;
             }
 
             await _userRepository.SoftDeleteUserAsync(id);
@@ -781,6 +795,23 @@ namespace UserService.Application.Services
             catch (Exception e)
             {
                 throw new Exception(e.Message);
+            }
+        }
+
+        private async Task ValidateAdrress(string? country = null, string? region = null, string? settlement = null)
+        {
+            if (country != null && country != "__DELETE__" && (region == null || region != "__DELETE__") && (settlement == null && settlement != "__DELETE__") && !RegionMaps.IsCountryAllowed(country))
+                throw new Exception("Not valid country");
+
+            if (country != null && country != "__DELETE__" && region != null && region != "__DELETE__" && (settlement == null && settlement != "__DELETE__") && !RegionMaps.IsRegionAllowed(country, region))
+                throw new Exception("Not valid region");
+
+            if (country != null && country != "__DELETE__"  && region != null && region != "__DELETE__" && settlement != null && settlement != "__DELETE__")
+            {
+                var res = await _geoServiceClient.ValidateSettlement(country, region, settlement);
+
+                if (res == false)
+                    throw new Exception("Not valid settlement");
             }
         }
     }
