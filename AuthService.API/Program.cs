@@ -80,6 +80,7 @@ builder.Services.AddMemoryCache(options =>
 
 //JwtAuth
 builder.Services.AddJwtAuthentication(configuration);
+//Server JWT
 builder.Services.AddServerJwtAuthentication(builder.Configuration);
 builder.Services.AddSingleton<IMicroserviceJwtProvider, MicroserviceJwtProvider>();
 

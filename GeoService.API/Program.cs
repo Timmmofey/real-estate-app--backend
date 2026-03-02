@@ -1,5 +1,6 @@
 using Classified.Shared.Extensions;
 using Classified.Shared.Extensions.ServerJwtAuth;
+using Classified.Shared.Infrastructure.MicroserviceJwt;
 using Classified.Shared.Infrastructure.RedisService;
 using GeoService.Application.Services;
 using GeoService.Domain.Abstractions;
@@ -42,13 +43,20 @@ builder.Services.AddHttpClient<IGeoapifyGeoService, GeoapifyGeoService>(client =
     client.DefaultRequestHeaders.Add("User-Agent", "GeoService/1.0"); // допустимо
 });
 
+//TranslateServiceClient
+builder.Services.AddHttpClient<ITranslateServiceClient, TranslateServiceClient>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["TranslationService:BaseUrl"]!);
+});
+
 builder.Services.AddHttpClient<ITranslateServiceClient, TranslateServiceClient>();
 
 //Cors
 builder.Services.AddDefaultCors();
 
+//Server JWT
 builder.Services.AddServerJwtAuthentication(builder.Configuration);
-
+builder.Services.AddSingleton<IMicroserviceJwtProvider, MicroserviceJwtProvider>();
 
 
 var app = builder.Build();

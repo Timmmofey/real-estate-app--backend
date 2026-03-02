@@ -1,4 +1,6 @@
 using Classified.Shared.Extensions;
+using Classified.Shared.Extensions.ServerJwtAuth;
+using Classified.Shared.Infrastructure.MicroserviceJwt;
 using Classified.Shared.Infrastructure.RedisService;
 using StackExchange.Redis;
 using TranslationService.Application.Services;
@@ -22,6 +24,11 @@ builder.Services.AddHttpClient<IGoogleTranslateClient, GoogleTranslateClient>();
 
 //Cors
 builder.Services.AddDefaultCors();
+
+//Server JWT
+builder.Services.AddServerJwtAuthentication(builder.Configuration);
+builder.Services.AddSingleton<IMicroserviceJwtProvider, MicroserviceJwtProvider>();
+
 
 
 var app = builder.Build();

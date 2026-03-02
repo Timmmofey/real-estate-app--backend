@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Classified.Shared\Classified.Shared.csproj" />
+    <ProjectReference Include="..\GeoService.Infrastructure\GeoService.Infrastructure.csproj" />
     <ProjectReference Include="..\GeoService.Infrastrucuture\GeoService.Domain.csproj" />
   </ItemGroup>
 

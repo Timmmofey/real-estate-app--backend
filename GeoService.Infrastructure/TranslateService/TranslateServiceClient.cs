@@ -1,18 +1,23 @@
-﻿using Classified.Shared.DTOs;
+﻿using Classified.Shared.Constants;
+using Classified.Shared.DTOs;
+using Classified.Shared.Extensions;
+using Classified.Shared.Infrastructure.MicroserviceJwt;
 using GeoService.Domain.Abstractions;
-using System.Net.Http;
+using Microsoft.AspNetCore.WebUtilities;
 using System.Net.Http.Json;
 
 namespace GeoService.Infrastructure.TranslateService
 {
     public class TranslateServiceClient: ITranslateServiceClient
     {
-        private readonly HttpClient _httpClient;
+        private readonly HttpClient _http;
+        private readonly IMicroserviceJwtProvider _microserviceJwtProvider;
 
 
-        public TranslateServiceClient(HttpClient http)
+        public TranslateServiceClient(HttpClient http, IMicroserviceJwtProvider microserviceJwtProvider)
         {
-            _httpClient = http;
+            _http = http;
+            _microserviceJwtProvider = microserviceJwtProvider;
         }
 
         public async Task<Dictionary<string, string>> TranslateAsync(string text)
@@ -20,12 +25,18 @@ namespace GeoService.Infrastructure.TranslateService
             if (string.IsNullOrWhiteSpace(text))
                 return new();
 
+            _http.SetServerJwt(_microserviceJwtProvider, InternalServices.GeoService, InternalServices.TranslationService);
 
-            string url = $"http://localhost:5229/api/Translation/multiple-translate?text={Uri.EscapeDataString(text)}";
+            var queryParams = new Dictionary<string, string?>
+            {
+                { "text" ,  text }
+            };
+
+            var url = QueryHelpers.AddQueryString("internal-api/translation/multiple-translate", queryParams);
 
             try
             {
-                var r = await _httpClient.GetFromJsonAsync<MultiLanguageTranslationResultDto>(url);
+                var r = await _http.GetFromJsonAsync<MultiLanguageTranslationResultDto>(url);
 
                 var dict = new Dictionary<string, string>();
                 if (r?.Translations != null)

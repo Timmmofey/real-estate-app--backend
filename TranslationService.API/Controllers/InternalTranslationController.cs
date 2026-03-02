@@ -1,27 +1,23 @@
-﻿using Classified.Shared.DTOs;
+﻿using Classified.Shared.Constants;
+using Classified.Shared.DTOs;
+using Classified.Shared.Extensions.ServerJwtAuth;
 using Microsoft.AspNetCore.Mvc;
 using TranslationService.Domain.Abstractions;
 
 namespace TranslationService.API.Controllers
 {
-    [Route("api/translation")]
+    [Route("internal-api/translation")]
     [ApiController]
-    public class TranslationController : ControllerBase
+    public class InternalTranslationController : ControllerBase
     {
         private readonly IGoogleTranslationService _googleTranslateService;
 
-        public TranslationController(IGoogleTranslationService googleTranslateService)
+        public InternalTranslationController(IGoogleTranslationService googleTranslateService)
         {
             _googleTranslateService = googleTranslateService;
         }
 
-        [HttpGet("translate")]
-        public async Task<IActionResult> translate(string text, string targetLanguage) {
-            var res = await _googleTranslateService.TranslateAsync(text, targetLanguage);
-
-            return Ok(res);
-        }
-
+        [AuthorizeServerJwt(InternalServices.GeoService)]
         [HttpGet("multiple-translate")]
         public async Task<MultiLanguageTranslationResultDto?> multipleTranslate(string text)
         {

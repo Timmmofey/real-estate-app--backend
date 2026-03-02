@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace GeoService.API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/geo")]
     [ApiController]
     public class GeoController : ControllerBase
     {
@@ -78,13 +78,13 @@ namespace GeoService.API.Controllers
             return Ok(res);
         }
 
-        [AuthorizeServerJwt(InternalServices.UserService)]
-        [HttpGet("verifysettlement")]
-        public async Task<IActionResult> VerifySettlement([FromQuery] string countryCode, [FromQuery] string regionCode, [FromQuery] string settlement)
-        {
-            var res = await _geoapifyGeoService.GetValidatedSettlement(countryCode, regionCode, settlement);
-            return Ok(res);
-        }
+        //[AuthorizeServerJwt(InternalServices.UserService)]
+        //[HttpGet("verifysettlement")]
+        //public async Task<IActionResult> VerifySettlement([FromQuery] string countryCode, [FromQuery] string regionCode, [FromQuery] string settlement)
+        //{
+        //    var res = await _geoapifyGeoService.GetValidatedSettlement(countryCode, regionCode, settlement);
+        //    return Ok(res);
+        //}
 
     }
 }

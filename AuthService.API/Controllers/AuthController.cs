@@ -5,7 +5,6 @@ using AuthService.Domain.Consts;
 using AuthService.Domain.DTOs;
 using Classified.Shared.Constants;
 using Classified.Shared.Extensions.Auth;
-using Classified.Shared.Extensions.ServerJwtAuth;
 using Classified.Shared.Functions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -16,7 +15,7 @@ using System.Security.Claims;
 
 namespace AuthService.API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/auth")]
     [ApiController]
     public class AuthController : ControllerBase
     {
@@ -40,29 +39,6 @@ namespace AuthService.API.Controllers
         {
             try
             {
-                //var deviceId = GetOrCreateDeviceId();
-
-                //var (tokens, restoreToken, twoFactorAuthenticatinToken) = await _authService.LoginAsync(dto.PhoneOrEmail, dto.Password, deviceId);
-
-                //if (restoreToken != null)
-                //{
-                //    CookieHepler.SetCookie(Response, CookieNames.Restore, restoreToken, minutes: 5);
-
-                //    return Ok(new { restore = true });
-                //}
-
-                //if (twoFactorAuthenticatinToken != null)
-                //{
-                //    CookieHepler.SetCookie(Response, CookieNames.TwoFactorAuthentication, twoFactorAuthenticatinToken, minutes: 5);
-
-                //    return Ok(new { isTwoFactorAuth = true });
-                //}
-
-                //CookieHepler.SetCookie(Response, CookieNames.Auth, tokens!.AccessToken, minutes: 10);
-                //CookieHepler.SetCookie(Response, CookieNames.Refresh, tokens.RefreshToken, days: 150);
-
-                //return Ok();
-
                 var deviceId = GetOrCreateDeviceId();
 
 
@@ -265,7 +241,7 @@ namespace AuthService.API.Controllers
         }
 
         [ValidateToken(JwtTokenType.Refresh)]
-        [HttpPost("Refresh")]
+        [HttpPost("refresh")]
         public async Task<IActionResult> Refresh1()
         {
             var currentIp = HttpContext.Connection.RemoteIpAddress?.ToString();
@@ -399,32 +375,7 @@ namespace AuthService.API.Controllers
             return Ok(sessions);
         }
 
-        [AuthorizeServerJwt(InternalServices.UserService)]
-        [HttpGet("get-password-reset-token")]
-        public IActionResult getResetPasswordResetToken(string userId)
-        {
-            var resetPasswordJwt = _jwtProvider.GenerateResetPasswordResetToken(Guid.Parse(userId));
-            return Ok(resetPasswordJwt);
-        }
-
-        [AuthorizeServerJwt(InternalServices.UserService)]
-        [HttpGet("get-email-reset-token")]
-        public IActionResult getResetEmailResetToken(string userId, string newEmail)
-        {
-            var resetPasswordJwt = _jwtProvider.GenerateResetEmailResetToken(Guid.Parse(userId), newEmail);
-            return Ok(resetPasswordJwt);
-        }
-
-        [AuthorizeServerJwt(InternalServices.UserService)]
-        [HttpGet("get-request-new-email-cofirmation-token")]
-        public IActionResult getRequestNewEmailCofirmationToken(string userId)
-        {
-            var resetPasswordJwt = _jwtProvider.GenerateRequestNewEmailCofirmationToken(Guid.Parse(userId));
-            return Ok(resetPasswordJwt);
-        }
-
-
-
+   
         /// <summary>
         ///
         /// </summary>

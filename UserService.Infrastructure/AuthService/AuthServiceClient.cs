@@ -1,6 +1,7 @@
 ﻿using Classified.Shared.Constants;
 using Classified.Shared.Extensions;
 using Classified.Shared.Infrastructure.MicroserviceJwt;
+using System.Net.Http.Json;
 
 namespace UserService.Infrastructure.AuthService
 {
@@ -19,7 +20,12 @@ namespace UserService.Infrastructure.AuthService
         {
             _http.SetServerJwt(_microserviceJwtProvider, InternalServices.UserService, InternalServices.AuthService);
 
-            var response = await _http.GetAsync($"api/auth/get-password-reset-token?userId={userId}");
+            var request = new
+            {
+                UserId = userId
+            };
+
+            var response = await _http.PostAsJsonAsync("internal-api/auth/get-password-reset-token", request);
 
             if (!response.IsSuccessStatusCode)
                 return null;
@@ -31,7 +37,13 @@ namespace UserService.Infrastructure.AuthService
         {
             _http.SetServerJwt(_microserviceJwtProvider, InternalServices.UserService, InternalServices.AuthService);
 
-            var response = await _http.GetAsync($"api/auth/get-email-reset-token?userId={userId}&newEmail={newEmail}");
+            var request = new
+            {
+                UserId = userId,
+                NewEmail = newEmail
+            };
+
+            var response = await _http.PostAsJsonAsync($"internal-api/auth/get-email-reset-token", request);
 
             if (!response.IsSuccessStatusCode)
                 return null;
@@ -43,7 +55,12 @@ namespace UserService.Infrastructure.AuthService
         {
             _http.SetServerJwt(_microserviceJwtProvider, InternalServices.UserService, InternalServices.AuthService);
 
-            var response = await _http.GetAsync($"api/auth/get-request-new-email-cofirmation-token?userId={userId}");
+            var request = new
+            {
+                UserId = userId
+            };
+
+            var response = await _http.PostAsJsonAsync($"internal-api/auth/get-request-new-email-cofirmation-token", request);
 
             if (!response.IsSuccessStatusCode)
                 return null;
