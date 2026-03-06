@@ -70,7 +70,6 @@ namespace UserService.Persistance.PostgreSQL.Repositories
 
         public async Task AddPersonUserAsync(User user, PersonProfile profile)
         {
-
             var userEntity = MapToUserEntity(user);
 
 
@@ -81,7 +80,6 @@ namespace UserService.Persistance.PostgreSQL.Repositories
 
         public async Task AddCompanyUserAsync(User user, CompanyProfile profile)
         {
-
             var userEntity = MapToUserEntity(user);
 
             var profileEntity = MapToEntity(profile);
@@ -398,6 +396,64 @@ namespace UserService.Persistance.PostgreSQL.Repositories
 
             if (affected == 0)
                 throw new InvalidOperationException("User not found");
+        }
+
+        public async Task<User?> GetUserByEmail(string email)
+        {
+            var userEntity = await _context.Users
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(u => (u.Email == email && u.IsPermanantlyDeleted != true));
+
+            if (userEntity == null)
+            {
+                return null;
+            }
+
+            var (user, error) = User.CreateExisting(
+              userEntity.Id,
+              userEntity.Email,
+              userEntity.PhoneNumber,
+              (UserRole)userEntity.Role,
+              userEntity.PasswordHash,
+              userEntity.IsTwoFactorEnabled,
+              userEntity.IsVerified,
+              userEntity.IsBlocked,
+              userEntity.IsSoftDeleted,
+              userEntity.IsPermanantlyDeleted,
+              userEntity.CreatedAt,
+              userEntity.DeletedAt
+           );
+
+            return user;
+        }
+
+        public async Task<User?> GetUserByPhoneNumber(string phoneNumber)
+        {
+            var userEntity = await _context.Users
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(u => (u.PhoneNumber == phoneNumber && u.IsPermanantlyDeleted != true));
+
+            if (userEntity == null)
+            {
+                return null;
+            }
+
+            var (user, error) = User.CreateExisting(
+              userEntity.Id,
+              userEntity.Email,
+              userEntity.PhoneNumber,
+              (UserRole)userEntity.Role,
+              userEntity.PasswordHash,
+              userEntity.IsTwoFactorEnabled,
+              userEntity.IsVerified,
+              userEntity.IsBlocked,
+              userEntity.IsSoftDeleted,
+              userEntity.IsPermanantlyDeleted,
+              userEntity.CreatedAt,
+              userEntity.DeletedAt
+           );
+
+            return user;
         }
 
 

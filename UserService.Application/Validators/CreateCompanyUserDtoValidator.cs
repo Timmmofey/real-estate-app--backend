@@ -3,8 +3,10 @@ using UserService.Application.DTOs;
 
 public class CreateCompanyUserDtoValidator : AbstractValidator<CreateCompanyUserDto>
 {
-    public CreateCompanyUserDtoValidator()
+    public CreateCompanyUserDtoValidator(CreateUserBaseValidator baseValidator)
     {
+        Include(baseValidator);
+
         RuleFor(x => x.Email)
             .NotEmpty().WithMessage("Email is required.")
             .EmailAddress().WithMessage("Invalid email format.");

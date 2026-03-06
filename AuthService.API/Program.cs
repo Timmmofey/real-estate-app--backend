@@ -34,11 +34,12 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHostedService<KafkaConsumer>();
 
 
-//UserService
+//UserServiceClient
 builder.Services.AddHttpClient<IUserServiceClient, UserServiceClient>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["UserService:BaseUrl"]!);
 });
+
 builder.Services.AddHttpContextAccessor();
 //PostgreDb
 builder.Services.AddDbContext<AuthServicePostgreDbContext>(
@@ -47,15 +48,21 @@ builder.Services.AddDbContext<AuthServicePostgreDbContext>(
         options.UseNpgsql(configuration.GetConnectionString(nameof(AuthServicePostgreDbContext)));
     }
 );
+
 // HttpContextAccessor нужны для User-Agent и IP
 builder.Services.AddHttpContextAccessor();
-// JWT, UAParser
-builder.Services.AddSingleton<IJwtProvider, JwtProvider>();
+
+// UAParser
 builder.Services.AddSingleton(Parser.GetDefault());
+
+// JWT
+builder.Services.AddSingleton<IJwtProvider, JwtProvider>();
+
 // AuthService
 builder.Services.AddScoped<IAuthService, AuthService.Application.Services.AuthService>();
 builder.Services.AddScoped<IRefreshTokenRepository, SessionRepository>();
-//
+
+//Fluent validation
 builder.Services.AddValidatorsFromAssembly(typeof(AssemblyMarker).Assembly);
 builder.Services.AddFluentValidationAutoValidation();
 
@@ -71,7 +78,6 @@ builder.Services.AddEmailService();
 
 //Ip GeoService
 builder.Services.AddSingleton<IIpGeoService, IpGeoService>();
-
 //Кеш для Ip GeoService
 builder.Services.AddMemoryCache(options =>
 {
@@ -80,7 +86,8 @@ builder.Services.AddMemoryCache(options =>
 
 //JwtAuth
 builder.Services.AddJwtAuthentication(configuration);
-//Server JWT
+
+//Server JwtAuth
 builder.Services.AddServerJwtAuthentication(builder.Configuration);
 builder.Services.AddSingleton<IMicroserviceJwtProvider, MicroserviceJwtProvider>();
 
@@ -130,7 +137,7 @@ if (app.Environment.IsDevelopment())
 
 
 // Добавляем мидлвар для глобальной обработки ошибок
-//app.UseMiddleware<GlobalExceptionMiddleware>();
+app.UseMiddleware<GlobalExceptionMiddleware>();
 
 app.UseRouting();
 

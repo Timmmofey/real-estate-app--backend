@@ -13,6 +13,7 @@ using UserService.Application.Abstactions;
 using UserService.Application.DTOs;
 using UserService.Application.Exeptions;
 using UserService.Application.Services;
+using UserService.Domain.Models;
 
 namespace UserService.API.Controllers
 {
@@ -36,23 +37,9 @@ namespace UserService.API.Controllers
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> CreatePersonUser([FromForm] CreatePersonUserDto dto)
         {
-            try
-            {
-                var userId = await _userService.CreatePersonUserAsync(dto);
-                return Created($"/users/{userId}", new { Message = _localizer["UserCreated"], UserId = userId });
-            }
-            catch (UserAlreadyExistsException)
-            {
-                return Conflict(new { Message = _localizer["UserAlreadyExists"] });
-            }
-            catch (RecentlyDeletedUserExceptionOnCreating)
-            {
-                return Conflict(new { Message = _localizer["RecentlyDeletedUser"] });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { Message = ex.Message });
-            }
+            var userId = await _userService.CreatePersonUserAsync(dto);
+
+            return Created($"/users/{userId}", new { Message = _localizer["UserCreated"], UserId = userId });
         }
 
         [HttpPost("add-company-user")]

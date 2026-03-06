@@ -1,21 +1,24 @@
-﻿using UserService.Domain.Models;
-using UserService.Domain.Abstactions;
-using UserService.Application.DTOs;
+﻿using Amazon;
 using Classified.Shared.Constants;
-using UserService.Application.Abstactions;
-using Classified.Shared.Infrastructure.S3.Abstractions;
-using Microsoft.AspNetCore.Http;
 using Classified.Shared.DTOs;
-using Confluent.Kafka;
-using UserService.Infrastructure.Kafka;
-using Classified.Shared.Infrastructure.RedisService;
+using Classified.Shared.Extensions.ErrorHandler.Errors;
 using Classified.Shared.Infrastructure.EmailService;
+using Classified.Shared.Infrastructure.RedisService;
+using Classified.Shared.Infrastructure.S3.Abstractions;
+using Confluent.Kafka;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Localization;
 using Newtonsoft.Json;
-using UserService.Infrastructure.AuthService;
+using UserService.API.Resources;
+using UserService.Application.Abstactions;
+using UserService.Application.DTOs;
 using UserService.Application.Exeptions;
+using UserService.Domain.Abstactions;
 using UserService.Domain.Consts;
-using Microsoft.AspNetCore.Mvc;
+using UserService.Domain.Models;
+using UserService.Infrastructure.AuthService;
 using UserService.Infrastructure.GeoService;
+using UserService.Infrastructure.Kafka;
 
 namespace UserService.Application.Services
 {
@@ -31,8 +34,10 @@ namespace UserService.Application.Services
         private readonly IAuthServiceClient _authService;
         private readonly IGeoServiceClient _geoServiceClient;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IStringLocalizer<Messages> _localizer;
 
-        public UserService(IUserRepository userRepository, IPasswordHasher passwordHasher, IFileStorageService fileStorageService, IKafkaProducer kafkaProducer, IRedisService redisService, IEmailService emailService, IAuthServiceClient authService, IUnitOfWork unitOfWork, IUserOAuthAccountRepository userOAuthAccountRepository, IGeoServiceClient geoServiceClient)
+
+        public UserService(IUserRepository userRepository, IPasswordHasher passwordHasher, IFileStorageService fileStorageService, IKafkaProducer kafkaProducer, IRedisService redisService, IEmailService emailService, IAuthServiceClient authService, IUnitOfWork unitOfWork, IUserOAuthAccountRepository userOAuthAccountRepository, IGeoServiceClient geoServiceClient, IStringLocalizer<Messages> localizer)
         {
             _userRepository = userRepository;
             _passwordHasher = passwordHasher;
@@ -44,11 +49,54 @@ namespace UserService.Application.Services
             _unitOfWork = unitOfWork;
             _geoServiceClient = geoServiceClient;
             _userOAuthAccountRepository = userOAuthAccountRepository;
+            _localizer = localizer;
         }
+
+        //public async Task<Guid> CreatePersonUserAsync(CreatePersonUserDto dto)
+        //{
+        //    await FindExistingOrResentlyDeletedUser(dto.Email, dto.PhoneNumber);
+
+        //    string? personMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, S3FolderName.UserProfileImages);
+
+
+        //    var userId = Guid.NewGuid();
+        //    var hashedPassword = _passwordHasher.Generate(dto.Password);
+
+        //    var (user, userError) = User.CreateNew(
+        //        userId,
+        //        dto.Email,
+        //        dto.PhoneNumber,
+        //        hashedPassword,
+        //        UserRole.Person
+        //    );
+
+        //    if (user == null)
+        //        throw new Exception(userError);
+
+        //    var (profile, profileError) = PersonProfile.Create(
+        //        userId,
+        //        dto.FirstName,
+        //        dto.LastName,
+        //        personMainPhotoUrl,
+        //        dto.Country,
+        //        dto.Region,
+        //        dto.Settlement,
+        //        dto.ZipCode
+        //    );
+
+        //    await ValidateAdrress(dto.Country, dto.Region, dto.Settlement);
+
+        //    if (profile == null)
+        //        throw new Exception(profileError);
+
+        //    await _userRepository.AddPersonUserAsync(user, profile);
+
+        //    return userId;
+        //}
 
         public async Task<Guid> CreatePersonUserAsync(CreatePersonUserDto dto)
         {
-            await FindExistingOrResentlyDeletedUser(dto.Email, dto.PhoneNumber);
+            await ValidateEmailAndPhoneNumberUniquenessAsync(dto.Email, dto.PhoneNumber);
 
             string? personMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, S3FolderName.UserProfileImages);
 
@@ -90,10 +138,9 @@ namespace UserService.Application.Services
 
         public async Task<Guid> CreateCompanyUserAsync(CreateCompanyUserDto dto)
         {
-            await FindExistingOrResentlyDeletedUser(dto.Email, dto.PhoneNumber);
+            await ValidateEmailAndPhoneNumberUniquenessAsync(dto.Email, dto.PhoneNumber);
 
             string? companyMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, S3FolderName.UserProfileImages);
-
 
             var userId = Guid.NewGuid();
             var hashedPassword = _passwordHasher.Generate(dto.Password);
@@ -137,10 +184,6 @@ namespace UserService.Application.Services
         {
             await FindExistingOrResentlyDeletedUser(dto.Email, dto.PhoneNumber);
 
-            string? personMainPhotoUrl = null;
-            if (dto.MainPhoto != null)
-                personMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, S3FolderName.UserProfileImages);
-
             var userId = Guid.NewGuid();
             string? hashedPassword = null;
 
@@ -168,7 +211,7 @@ namespace UserService.Application.Services
                     userId,
                     dto!.FirstName,
                     dto.LastName,
-                    personMainPhotoUrl,
+                    null,
                     dto?.Country,
                     dto?.Region,
                     dto?.Settlement,
@@ -199,17 +242,22 @@ namespace UserService.Application.Services
                 await _unitOfWork.RollbackAsync();
                 throw;
             }
-                      
+
+            if (dto.MainPhoto != null)
+            {
+                var photoUrl = await UploadPhotoAsync(
+                    dto.MainPhoto,
+                    S3FolderName.UserProfileImages);
+
+                await _userRepository.PatchPersonProfileAsync(userId, null, null, photoUrl, null, null, null, null);
+            }
+
             return userId;
         }
 
         public async Task<Guid> CreateCompanyUserFromOAuthAsync(CreateCompanyUserOAuthDto dto)
         {
             await FindExistingOrResentlyDeletedUser(dto.Email, dto.PhoneNumber);
-
-            string? companyMainPhotoUrl = null;
-            if (dto.MainPhoto != null)
-                companyMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, S3FolderName.UserProfileImages);
 
             var userId = Guid.NewGuid();
             string? hashedPassword = null;
@@ -244,7 +292,7 @@ namespace UserService.Application.Services
                     dto.RegistrationAdress,
                     dto.СompanyRegistrationNumber,
                     dto.EstimatedAt,
-                    companyMainPhotoUrl,
+                    null,
                     dto.Description
                 );
 
@@ -273,6 +321,14 @@ namespace UserService.Application.Services
                 throw;
             }
 
+            if (dto.MainPhoto != null)
+            {
+                var photoUrl = await UploadPhotoAsync(
+                    dto.MainPhoto,
+                    S3FolderName.UserProfileImages);
+
+                await _userRepository.PatchCompanyProfileAsync(userId, null, null, null, null, null, null, null, null, photoUrl, null);
+            }
 
             return userId;
         }
@@ -748,11 +804,11 @@ namespace UserService.Application.Services
             {
                 if (existingUser.DeletedAt.HasValue && existingUser.DeletedAt.Value > DateTime.UtcNow.AddMonths(-6) && existingUser.IsPermanantlyDeleted != true)
                 {
-                    throw new RecentlyDeletedUserExceptionOnCreating();
+                    throw new ArgumentException(_localizer["RecentlyDeletedUser"]);
                 }
                 else if(existingUser.IsPermanantlyDeleted != true)
                 {
-                    throw new UserAlreadyExistsException();
+                    throw new ArgumentException(_localizer["UserAlreadyExists"]);
                 }
             }
 
@@ -800,18 +856,53 @@ namespace UserService.Application.Services
 
         private async Task ValidateAdrress(string? country = null, string? region = null, string? settlement = null)
         {
-            if (country != null && country != "__DELETE__" && (region == null || region != "__DELETE__") && (settlement == null && settlement != "__DELETE__") && !RegionMaps.IsCountryAllowed(country))
+            if (country != null && country != "__DELETE__" && country != "none" && (region == null || region != "__DELETE__") && (settlement == null && settlement != "__DELETE__") && !RegionMaps.IsCountryAllowed(country))
                 throw new Exception("Not valid country");
 
-            if (country != null && country != "__DELETE__" && region != null && region != "__DELETE__" && (settlement == null && settlement != "__DELETE__") && !RegionMaps.IsRegionAllowed(country, region))
+            if (country != null && country != "__DELETE__" && country != "none" && region != null && region != "__DELETE__" && region != "none" && (settlement == null && settlement != "__DELETE__") && !RegionMaps.IsRegionAllowed(country, region))
                 throw new Exception("Not valid region");
 
-            if (country != null && country != "__DELETE__"  && region != null && region != "__DELETE__" && settlement != null && settlement != "__DELETE__")
+            if (country != null && country != "__DELETE__" && country != "none" && region != null && region != "__DELETE__" && region != "none" && settlement != null && settlement != "__DELETE__")
             {
                 var res = await _geoServiceClient.ValidateSettlement(country, region, settlement);
 
                 if (res == false)
                     throw new Exception("Not valid settlement");
+            }
+        }
+
+        private async Task ValidateEmailAndPhoneNumberUniquenessAsync(string email, string phoneNumber)
+        {
+            var errors = new ValidationErrors();
+
+            var existingUserByEmail =
+                await _userRepository.GetUserByEmail(email);
+
+            var existingUserByPhone =
+                await _userRepository.GetUserByPhoneNumber(phoneNumber);
+
+            if (existingUserByEmail != null)
+            {
+                errors.Add(
+                    nameof(CreateUserBaseAbstract.Email),
+                    _localizer["UserWithSuchEmailAlreadyExists"]
+                );
+            }
+
+            if (existingUserByPhone != null)
+            {
+                errors.Add(
+                    nameof(CreateUserBaseAbstract.PhoneNumber),
+                    _localizer["UserWithSuchPhoneNumberAlreadyExists"]
+                );
+            }
+
+            if (errors.Any())
+            {
+                throw new DomainValidationException(
+                    errors.Errors,
+                    _localizer["ErrorWhileUserCreating"]
+                );
             }
         }
     }

@@ -1,5 +1,6 @@
 using Classified.Shared.Extensions;
 using Classified.Shared.Extensions.Auth;
+using Classified.Shared.Extensions.ErrorHandler;
 using Classified.Shared.Extensions.ServerJwtAuth;
 using Classified.Shared.Infrastructure.EmailService;
 using Classified.Shared.Infrastructure.MicroserviceJwt;
@@ -9,6 +10,7 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
+using System.Text.Json;
 using UserService.API.Extensions;
 using UserService.Application;
 using UserService.Domain.Abstactions;
@@ -28,10 +30,40 @@ var configuration = builder.Configuration;
 //Localization
 builder.Services.AddAppLocalization();
 
-builder.Services.AddControllers();
+//builder.Services.AddControllers();
+
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Устанавливает формат имен свойств объектов в JSON в camelCase.
+        // Например:
+        // C# -> public string PhoneNumber { get; set; }
+        // JSON -> "phoneNumber"
+        //
+        // Без этого клиент получал бы "PhoneNumber".
+        options.JsonSerializerOptions.PropertyNamingPolicy =
+            JsonNamingPolicy.CamelCase;
+
+        // Устанавливает формат ключей словаря (Dictionary<string, T>) в camelCase.
+        // ВАЖНО для наших ошибок валидации:
+        //
+        // errors.Add(nameof(CreatePersonUserDto.PhoneNumber), ...)
+        //
+        // В C# ключ будет "PhoneNumber",
+        // а в JSON станет "phoneNumber".
+        //
+        // Без этой настройки ключи словаря останутся в PascalCase.
+        options.JsonSerializerOptions.DictionaryKeyPolicy =
+            JsonNamingPolicy.CamelCase;
+    });
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Для мидлвара глобальной обработки ошибок
+builder.Services.AddApiErrorHandling();
 
 //UserService
 builder.Services.AddHttpClient<IAuthServiceClient, AuthServiceClient>(client =>

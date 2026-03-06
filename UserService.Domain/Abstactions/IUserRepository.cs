@@ -24,5 +24,7 @@ namespace UserService.Domain.Abstactions
         Task<string?> GetUserEmailById(Guid id);
         Task<string?> GetPasswordHashByUserId(Guid userId);
         Task ToggleTwoFactorAuthentication(Guid userId);
+        Task<User?> GetUserByEmail(string email);
+        Task<User?> GetUserByPhoneNumber(string phoneNumber);
     }
 }
