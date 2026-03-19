@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
@@ -17,39 +17,41 @@ namespace Classified.Shared.Extensions.ServerJwtAuth
 
             var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
 
-            var tokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = false,
-                ValidateAudience = false,
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.FromMinutes(1),
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = signingKey
-            };
+            var issuer = configuration["ServerJwt:Issuer"]
+                ?? throw new InvalidOperationException("ServerJwt:Issuer is not configured");
 
-            // Регистрируем named JwtBearer (не трогаем DefaultScheme)
+            var allowedIssuers = configuration.GetSection("ServerJwt:AllowedIssuers").Get<string[]>()
+                                 ?? throw new InvalidOperationException("ServerJwt:AllowedIssuers not configured");
+
+            // JWT Authentication
             services.AddAuthentication()
-                .AddJwtBearer("ServerJwt", options =>
+            .AddJwtBearer("InternalServerJwt", options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
                 {
-                    options.TokenValidationParameters = tokenValidationParameters;
+                    ValidateIssuer = true,
+                    ValidIssuers = allowedIssuers,
+                    ValidateAudience = true,
+                    ValidAudience = issuer,
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.FromMinutes(1),
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = signingKey
+                };
+            });
 
-                    options.Events = new JwtBearerEvents
-                    {
-                        OnMessageReceived = context =>
-                        {
-                            var authHeader = context.Request.Headers["Authorization"].ToString();
-                            if (!string.IsNullOrEmpty(authHeader) &&
-                                authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                            {
-                                context.Token = authHeader["Bearer ".Length..];
-                            }
-                            return Task.CompletedTask;
-                        }
-                    };
+            //Authorization Policy
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("InternalServerJwt", policy =>
+                {
+                    policy.RequireAuthenticatedUser();
                 });
+            });
 
-            services.AddAuthorization();
+
             return services;
         }
     }
+
 }

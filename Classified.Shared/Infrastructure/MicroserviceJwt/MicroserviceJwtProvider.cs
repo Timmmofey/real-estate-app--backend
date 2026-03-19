@@ -15,7 +15,7 @@ namespace Classified.Shared.Infrastructure.MicroserviceJwt
             _config = config;
         }
 
-        public string GenerateToken(string subject, string audience, int expiresMinutes = 1)
+        public string GenerateToken(string audience, string? subject = null, int expiresMinutes = 1)
         {
             var claims = new[]
             {
@@ -23,7 +23,7 @@ namespace Classified.Shared.Infrastructure.MicroserviceJwt
             };
 
             var issuer = _config["ServerJwt:Issuer"]
-               ?? throw new InvalidOperationException("ServerJwt:Issuer is not configured");
+                ?? throw new InvalidOperationException("ServerJwt:Issuer is not configured");
 
             var key = _config["ServerJwt:ServerKey"]
                 ?? throw new InvalidOperationException("ServerJwt:ServerKey is not configured");
@@ -32,8 +32,8 @@ namespace Classified.Shared.Infrastructure.MicroserviceJwt
             var creds = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-                issuer: issuer,     
-                audience: audience, 
+                issuer: issuer,
+                audience: audience,
                 claims: claims,
                 expires: DateTime.UtcNow.AddMinutes(expiresMinutes),
                 signingCredentials: creds
@@ -41,5 +41,6 @@ namespace Classified.Shared.Infrastructure.MicroserviceJwt
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
     }
 }

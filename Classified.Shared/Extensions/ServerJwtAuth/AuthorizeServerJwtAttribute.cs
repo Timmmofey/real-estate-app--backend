@@ -1,42 +1,62 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Classified.Shared.Extensions.ServerJwtAuth
 {
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = true)]
-    public sealed class AuthorizeServerJwtAttribute : AuthorizeAttribute, IAuthorizationFilter
+    public sealed class AuthorizeServerJwtAttribute : AuthorizeAttribute, IAsyncAuthorizationFilter
     {
-        private readonly string[] _allowedSubs;
+        private readonly string[] _allowedIssuersForEndpoint;
 
-        public AuthorizeServerJwtAttribute(params string[] allowedSubs)
+        public AuthorizeServerJwtAttribute(params string[] allowedIssuersForEndpoint)
         {
-            AuthenticationSchemes = "ServerJwt";
-            _allowedSubs = allowedSubs ?? Array.Empty<string>();
+            if (allowedIssuersForEndpoint == null || allowedIssuersForEndpoint.Length == 0)
+                throw new ArgumentException("At least one allowed issuer must be specified", nameof(allowedIssuersForEndpoint));
+
+            _allowedIssuersForEndpoint = allowedIssuersForEndpoint;
+            AuthenticationSchemes = "InternalServerJwt"; 
         }
 
-        public void OnAuthorization(AuthorizationFilterContext context)
+        public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
         {
-            var user = context.HttpContext.User;
+            var httpContext = context.HttpContext;
+            var user = httpContext.User;
 
-            Console.WriteLine($"[AuthorizeServerJwt] IsAuthenticated={user.Identity?.IsAuthenticated}");
-
-            if (!user.Identity?.IsAuthenticated ?? true)
+            // 1. Базовая аутентификация
+            if (user?.Identity?.IsAuthenticated != true)
             {
-                Console.WriteLine("[AuthorizeServerJwt] User is not authenticated");
                 context.Result = new UnauthorizedResult();
                 return;
             }
 
-            var sub = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            Console.WriteLine($"[AuthorizeServerJwt] token.sub='{sub}' allowed=[{string.Join(',', _allowedSubs)}]");
-
-            // Нечувствительное к регистру сравнение и trim
-            if (string.IsNullOrWhiteSpace(sub) || !_allowedSubs.Any(a => string.Equals(a?.Trim(), sub?.Trim(), StringComparison.OrdinalIgnoreCase)))
+            // 2. Извлекаем issuer
+            var issuer = user.FindFirst(JwtRegisteredClaimNames.Iss)?.Value;
+            if (string.IsNullOrWhiteSpace(issuer))
             {
-                Console.WriteLine("[AuthorizeServerJwt] sub not allowed -> Forbid");
-                context.Result = new ForbidResult();
+                context.Result = new UnauthorizedResult(); // нет issuer'а
+                return;
             }
+
+            // 3. Проверка: issuer должен быть в списке разрешённых для этого эндпоинта (из атрибута)
+            if (!_allowedIssuersForEndpoint.Any(i => string.Equals(i, issuer, StringComparison.OrdinalIgnoreCase)))
+            {
+                context.Result = new ForbidResult(); // 403 – доступ запрещён
+                return;
+            }
+
+            // 4. Проверка: issuer должен быть в глобальном списке доверенных издателей (из конфига)
+            var configuration = httpContext.RequestServices.GetRequiredService<IConfiguration>();
+            var globalAllowedIssuers = configuration.GetSection("ServerJwt:AllowedIssuers").Get<string[]>();
+            if (globalAllowedIssuers == null || !globalAllowedIssuers.Contains(issuer))
+            {
+                context.Result = new ForbidResult(); // 403
+                return;
+            }
+
         }
     }
 }
