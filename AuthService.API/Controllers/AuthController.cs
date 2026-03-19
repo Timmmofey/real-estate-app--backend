@@ -86,7 +86,7 @@ namespace AuthService.API.Controllers
             }
         }
 
-        [ValidateToken(JwtTokenType.TwoFactorAuthentication)]
+        [Authorize(Policy = nameof(JwtTokenType.TwoFactorAuthentication))]
         [HttpPost("login-via-two-factor-auth")]
         public async Task<IActionResult> LoginViaTwoFactorAuth([FromBody]string code)
         {
@@ -240,9 +240,10 @@ namespace AuthService.API.Controllers
             return Redirect(registerRedirect);
         }
 
-        [ValidateToken(JwtTokenType.Refresh)]
+        //[ValidateToken(JwtTokenType.Refresh)]
+        [Authorize(Policy = "DeviceAndRefreshOnly")]
         [HttpPost("refresh")]
-        public async Task<IActionResult> Refresh1()
+        public async Task<IActionResult> Refresh()
         {
             var currentIp = HttpContext.Connection.RemoteIpAddress?.ToString();
 
@@ -250,11 +251,7 @@ namespace AuthService.API.Controllers
                 return Unauthorized("Ip is invalid.");
 
             // 1. Чтение device-token
-            Guid deviceId;
-
-            var errorResult = TryGetDeviceIdFromCookie(out deviceId);
-            if (errorResult != null)
-                return errorResult;
+            Guid deviceId = TryGetDeviceIdFromCookie();
 
             // 2. Чтение refresh-токена
             if (!Request.Cookies.TryGetValue(CookieNames.Refresh, out var refreshTokenString) ||
@@ -275,35 +272,22 @@ namespace AuthService.API.Controllers
                 return Unauthorized("Refresh token claim is invalid.");
 
             if(ipClaim == null)
-                return Unauthorized("Refresh token claim is invalid.");
+                return Unauthorized("Refresh token claim is invalid.");    
 
+            var tokens = await _authService.RefreshAndRorateAsync(refreshToken, deviceId, ipClaim);
 
-            try
-            {
-                // 3. Получение новых токенов
-                var tokens = await _authService.RefreshAndRorateAsync(refreshToken, deviceId, ipClaim);
+            CookieHepler.SetCookie(Response, CookieNames.Auth, tokens.AccessToken, minutes: 10);
+            CookieHepler.SetCookie(Response, CookieNames.Refresh, tokens.RefreshToken, days: 150);
+            CookieHepler.SetCookie(Response, CookieNames.Device, tokens.DeviceToken, days: 150);
 
-                CookieHepler.SetCookie(Response, CookieNames.Auth, tokens.AccessToken, minutes: 10);
-                CookieHepler.SetCookie(Response, CookieNames.Refresh, tokens.RefreshToken, days: 150);
-                CookieHepler.SetCookie(Response, CookieNames.Device, tokens.DeviceToken, days: 150);
-
-                return Ok(tokens);
-            }
-            catch
-            {
-                return Unauthorized("Refresh token is malformed.");
-            }
+            return Ok();
         }
 
-        [Authorize]
+        [AccessAuthorize]
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
-            Guid deviceId;
-
-            var errorResult = TryGetDeviceIdFromCookie(out deviceId);
-            if (errorResult != null)
-                return errorResult;
+            Guid deviceId = TryGetDeviceIdFromCookie();
 
             await _authService.LogoutAync(deviceId);
 
@@ -313,7 +297,7 @@ namespace AuthService.API.Controllers
         }
 
 
-        [Authorize]
+        [AccessAuthorize]
         [HttpPost("logout-all")]
         public async Task<IActionResult> LogoutAll()
         {
@@ -330,7 +314,7 @@ namespace AuthService.API.Controllers
             return NoContent();
         }
 
-        [Authorize]
+        [AccessAuthorize]
         [HttpPost("terminate-session")]
         public async Task<IActionResult> TerminateSessionAsync(Guid sessionId)
         {
@@ -349,7 +333,7 @@ namespace AuthService.API.Controllers
             return NoContent();
         }
 
-        [Authorize]
+        [AccessAuthorize]
         [HttpGet("get-current-user-sessions")]
         public async Task<ActionResult<ICollection<SessionDto>>> GetUsersSessionAsync()
         {
@@ -375,6 +359,7 @@ namespace AuthService.API.Controllers
             return Ok(sessions);
         }
 
+
    
         /// <summary>
         ///
@@ -382,31 +367,23 @@ namespace AuthService.API.Controllers
 
 
 
-        private IActionResult? TryGetDeviceIdFromCookie(out Guid deviceId)
+        private Guid TryGetDeviceIdFromCookie()
         {
-            deviceId = Guid.Empty;
+            Guid deviceId = Guid.Empty;
 
             if (!Request.Cookies.TryGetValue(CookieNames.Device, out var deviceToken) ||
                 string.IsNullOrEmpty(deviceToken))
             {
-                return Unauthorized("Device token is missing or invalid.");
+                throw new ArgumentException("Device token is missing or invalid");
             }
 
             var handler = new JwtSecurityTokenHandler();
-            try
-            {
-                var token = handler.ReadJwtToken(deviceToken);
-                var deviceTokenClaim = token.Claims.FirstOrDefault(c => c.Type == "deviceId")?.Value;
-                if (!Guid.TryParse(deviceTokenClaim, out deviceId))
-                {
-                    return Unauthorized("Device ID claim is invalid.");
-                }
-                return null;
-            }
-            catch
-            {
-                return Unauthorized("Device token is malformed.");
-            }
+            var token = handler.ReadJwtToken(deviceToken);
+            var deviceTokenClaim = token.Claims.FirstOrDefault(c => c.Type == "deviceId")?.Value;
+
+            if (!Guid.TryParse(deviceTokenClaim, out deviceId)) throw new ArgumentException("Device ID claim is invalid.");
+            
+            return deviceId;
         }
 
         private Guid GetOrCreateDeviceId()
