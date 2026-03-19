@@ -20,8 +20,12 @@ namespace AuthService.API.Controllers
 
         [AuthorizeServerJwt(InternalServices.UserService)]
         [HttpPost("get-password-reset-token")]
-        public IActionResult getResetPasswordResetToken([FromBody] string userId)
+        public IActionResult getResetPasswordResetToken([FromBody] JsonElement body)
         {
+            var userId = body.GetProperty("userId").GetString();
+
+            if (userId == null) throw new ArgumentNullException("userId");
+
             var resetPasswordJwt = _jwtProvider.GenerateResetPasswordResetToken(Guid.Parse(userId));
             return Ok(resetPasswordJwt);
         }
@@ -33,6 +37,10 @@ namespace AuthService.API.Controllers
             var userId = body.GetProperty("userId").GetString();
             var newEmail = body.GetProperty("newEmail").GetString();
 
+            if (userId == null) throw new ArgumentNullException("userId");
+            if (newEmail == null) throw new ArgumentNullException("newEmail");
+
+
             var resetEmailJwt = _jwtProvider.GenerateResetEmailResetToken(Guid.Parse(userId), newEmail);
             return Ok(resetEmailJwt);
         }
@@ -42,6 +50,9 @@ namespace AuthService.API.Controllers
         public IActionResult getRequestNewEmailCofirmationToken([FromBody] JsonElement body)
         {
             var userId = body.GetProperty("userId").GetString();
+
+            if (userId == null) throw new ArgumentNullException("userId");
+
             var resetPasswordJwt = _jwtProvider.GenerateRequestNewEmailCofirmationToken(Guid.Parse(userId));
             return Ok(resetPasswordJwt);
         }

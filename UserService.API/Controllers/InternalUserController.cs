@@ -1,6 +1,7 @@
 ﻿using Classified.Shared.Constants;
 using Classified.Shared.DTOs;
 using Classified.Shared.Extensions.ServerJwtAuth;
+using Classified.Shared.Extensions.ServerJwtAuth.Classified.Shared.Extensions.ServerJwtAuth;
 using Microsoft.AspNetCore.Mvc;
 using UserService.Application.Abstactions;
 using UserService.Application.DTOs;
@@ -32,12 +33,13 @@ namespace UserService.API.Controllers
         }
 
         [AuthorizeServerJwt(InternalServices.AuthService)]
+        [AuthorizeServerJwtBySub("verify-user-credentials")]
         [HttpPost("verify-user-credentials")]
-        public async Task<IActionResult> VerifyUserCredentials(string phoneOrEmail, string password)
+        public async Task<IActionResult> VerifyUserCredentials([FromBody] VerifyUserCredentialsRequestDto dto)
         {
             try
             {
-                var verifiedUserDto = await _userService.VerifyUsersCredentials(phoneOrEmail, password);
+                var verifiedUserDto = await _userService.VerifyUsersCredentials(dto.PhoneOrEmail, dto.Password);
 
                 return Ok(verifiedUserDto);
             }
@@ -45,7 +47,6 @@ namespace UserService.API.Controllers
             {
                 return NotFound(e.Message);
             }
-
         }
 
         [AuthorizeServerJwt(InternalServices.AuthService)]

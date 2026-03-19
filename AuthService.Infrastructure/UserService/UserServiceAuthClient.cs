@@ -19,27 +19,29 @@ namespace AuthService.Infrastructure.UserService
             _microserviceJwtProvider = microserviceJwtProvider;
         }
 
+        private readonly string _serviceName = InternalServices.UserService;
+
         public async Task<VerifiedUserDto?> VerifyUserCredentialsAsync(string phoneOrEmail, string password)
         {
-            _http.SetServerJwt(_microserviceJwtProvider, InternalServices.AuthService, InternalServices.UserService);
+            _http.SetServerJwt(_microserviceJwtProvider, _serviceName, "verify-user-credentials");
 
-            var queryParams = new Dictionary<string, string?>
+            var request = new
             {
-                { "phoneOrEmail", phoneOrEmail },
-                { "password", password }
+                PhoneOrEmail = phoneOrEmail,
+                Password = password
             };
 
-            var url = QueryHelpers.AddQueryString("internal-api/users/verify-user-credentials", queryParams);
+            var response = await _http.PostAsJsonAsync($"internal-api/users/verify-user-credentials", request);
 
-            var response = await _http.PostAsync(url, null);
-            if (!response.IsSuccessStatusCode) return null;
+            if (!response.IsSuccessStatusCode) 
+                throw new UnauthorizedAccessException($"error:{response.RequestMessage}");
 
             return await response.Content.ReadFromJsonAsync<VerifiedUserDto>();
         }
 
         public async Task<VerifiedUserDto?> GetVerifiedUserDtoByIdAsync(string userId)
         {
-            _http.SetServerJwt(_microserviceJwtProvider, InternalServices.AuthService, InternalServices.UserService);
+            _http.SetServerJwt(_microserviceJwtProvider, _serviceName);
 
             var queryParams = new Dictionary<string, string?>
             {
@@ -57,7 +59,7 @@ namespace AuthService.Infrastructure.UserService
 
         public async Task<UserOAuthAccountDto?> GetUserOAuthAccountByProviderAndProviderUserIdAsync(OAuthProvider provider,string providerUserId)
         {
-            _http.SetServerJwt(_microserviceJwtProvider, InternalServices.AuthService, InternalServices.UserService);
+            _http.SetServerJwt(_microserviceJwtProvider, _serviceName);
 
             var queryParams = new Dictionary<string, string?>
             {
@@ -80,7 +82,7 @@ namespace AuthService.Infrastructure.UserService
         
         public async Task<string?> GetUserIdByEmailAsync(string email)
         {
-            _http.SetServerJwt(_microserviceJwtProvider, InternalServices.AuthService, InternalServices.UserService);
+            _http.SetServerJwt(_microserviceJwtProvider, _serviceName);
 
             var queryParams = new Dictionary<string, string?>
             {
@@ -98,7 +100,7 @@ namespace AuthService.Infrastructure.UserService
 
         public async Task ConnectOauthAccountToExistingUserAsync(OAuthProvider provider, string providerId, Guid userId)
         {
-            _http.SetServerJwt(_microserviceJwtProvider, InternalServices.AuthService, InternalServices.UserService);
+            _http.SetServerJwt(_microserviceJwtProvider, _serviceName);
 
             var request = new
             {
