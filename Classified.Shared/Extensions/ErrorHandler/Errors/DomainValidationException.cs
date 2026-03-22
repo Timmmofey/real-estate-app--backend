@@ -28,6 +28,12 @@
             };
         }
 
+        public DomainValidationException(string message)
+           : base(message)
+        {
+            Errors = new Dictionary<string, string[]>();
+        }
+
         // Несколько полей
         public DomainValidationException(Dictionary<string, string[]> errors, string message = "Validation failed")
             : base(message)
