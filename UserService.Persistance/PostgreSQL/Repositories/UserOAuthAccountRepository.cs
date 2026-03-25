@@ -1,6 +1,5 @@
 ﻿using Classified.Shared.Constants;
 using Microsoft.EntityFrameworkCore;
-using System.Reflection.Metadata.Ecma335;
 using UserService.Domain.Abstactions;
 using UserService.Domain.Models;
 using UserService.Persistance.PostgreSQL.Entities;
@@ -16,10 +15,10 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             _context = context;
         }
 
-        public async Task<ICollection<UserOAuthAccount>> GetUsersOAuthAccountsByUserId(Guid userId)
+        public async Task<ICollection<UserOAuthAccount>> GetUsersOAuthAccountsByUserId(Guid userId, CancellationToken ct)
         {
             
-            var accountEntities = await _context.UserOAuthAccounts.Where(account => account.UserId == userId).ToListAsync();
+            var accountEntities = await _context.UserOAuthAccounts.Where(account => account.UserId == userId).ToListAsync(ct);
 
             var accounts = accountEntities.Select(entity => UserOAuthAccount.CreateExisting(
                 entity.Id,
@@ -35,9 +34,9 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             return accounts;
         }
 
-        public async Task<UserOAuthAccount?> GetUserOAuthAccountByProviderAndProviderUserId(OAuthProvider provider, string providerUserId)
+        public async Task<UserOAuthAccount?> GetUserOAuthAccountByProviderAndProviderUserId(OAuthProvider provider, string providerUserId, CancellationToken ct)
         {
-            var userOAuthAccountEntity = await _context.UserOAuthAccounts.FirstOrDefaultAsync(profile => profile.OAuthProviderName == provider && profile.ProviderUserId == providerUserId);
+            var userOAuthAccountEntity = await _context.UserOAuthAccounts.FirstOrDefaultAsync(profile => profile.OAuthProviderName == provider && profile.ProviderUserId == providerUserId, ct);
 
             if (userOAuthAccountEntity == null) 
                 return null;
@@ -56,9 +55,9 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             return userOAuthAccount;
         }
 
-        public async Task AddUserOAuthAccountAsync(UserOAuthAccount userOAuthAccount)
+        public async Task AddUserOAuthAccountAsync(UserOAuthAccount userOAuthAccount, CancellationToken ct)
         {
-            if (await ChechIfUserHasOauthAccountWithSameProvider(userOAuthAccount.OAuthProviderName, userOAuthAccount.UserId) == true)
+            if (await ChechIfUserHasOauthAccountWithSameProvider(userOAuthAccount.OAuthProviderName, userOAuthAccount.UserId, ct) == true)
                 throw new InvalidOperationException();
 
             var entity = new UserOAuthAccountEntity
@@ -70,29 +69,32 @@ namespace UserService.Persistance.PostgreSQL.Repositories
                 CreatedAt = userOAuthAccount.CreatedAt
             };
 
-            await _context.UserOAuthAccounts.AddAsync(entity);
-            await _context.SaveChangesAsync();
+            await _context.UserOAuthAccounts.AddAsync(entity, ct);
+            await _context.SaveChangesAsync(ct);
         }
 
-        public async Task<bool> ChechIfUserHasOauthAccountWithSameProvider(OAuthProvider provider, Guid userId)
+        public async Task<bool> ChechIfUserHasOauthAccountWithSameProvider(OAuthProvider provider, Guid userId, CancellationToken ct)
         {
-            var res = await _context.UserOAuthAccounts.FirstOrDefaultAsync(a => a.OAuthProviderName == provider && a.UserId == userId);
-            if (res == null) return false;
-            return true;
+            //var res = await _context.UserOAuthAccounts.FirstOrDefaultAsync(a => a.OAuthProviderName == provider && a.UserId == userId);
+            //if (res == null) return false;
+            //return true;
+
+            return await _context.UserOAuthAccounts
+                .AnyAsync(a => a.OAuthProviderName == provider && a.UserId == userId, ct);
         }
 
-        public async Task DeleteOAuthAccountByUserIdAsync(OAuthProvider provider, Guid userId)
+        public async Task DeleteOAuthAccountByUserIdAsync(OAuthProvider provider, Guid userId, CancellationToken ct)
         {
             var deleted = await _context.UserOAuthAccounts
                 .Where(a => a.OAuthProviderName == provider && a.UserId == userId)
-                .ExecuteDeleteAsync();
+                .ExecuteDeleteAsync(ct);
         }
 
-        public async Task DeleteAllOAuthAccountsByUserIdAsync(Guid userId)
+        public async Task DeleteAllOAuthAccountsByUserIdAsync(Guid userId, CancellationToken ct)
         {
             var deleted = await _context.UserOAuthAccounts
                 .Where(a => a.UserId == userId)
-                .ExecuteDeleteAsync();
+                .ExecuteDeleteAsync(ct);
         }
 
     }

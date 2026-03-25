@@ -1,6 +1,4 @@
-﻿using Classified.Shared.Constants;
-using Classified.Shared.Extensions.ServerJwtAuth;
-using GeoService.Domain.Abstractions;
+﻿using GeoService.Domain.Abstractions;
 using Microsoft.AspNetCore.Mvc;
 
 
@@ -45,7 +43,7 @@ namespace GeoService.API.Controllers
 
         // GET /api/Geo/suggest?query=hou&countryCode=US&stateCode=TX&limit=10
         [HttpGet("suggestsettlements")]
-        public async Task<IActionResult> GetSuggestions([FromQuery] string query, [FromQuery] string? countryCode, [FromQuery] string? regionCode)
+        public async Task<IActionResult> GetSuggestions([FromQuery] string query, [FromQuery] string countryCode, [FromQuery] string regionCode)
         {
             if (string.IsNullOrWhiteSpace(query)) return BadRequest("query is required");
             var res = await _geoapifyGeoService.GetSettlementSuggestionsAsync(countryCode, regionCode, query);

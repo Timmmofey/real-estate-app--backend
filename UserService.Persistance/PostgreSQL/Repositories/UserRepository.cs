@@ -16,139 +16,102 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             _context = context;
         }
 
-        public async Task<User?> GetUserById(Guid userId)
+        public async Task<User?> GetUserById(Guid userId, CancellationToken ct)
         {
-            var userEntity = await _context.Users.FirstOrDefaultAsync(user => user.Id == userId);
+            var userEntity = await _context.Users.FirstOrDefaultAsync(user => user.Id == userId, ct);
 
-            if (userEntity == null)
-            {
-                return null;
-            }
-
-            var (user, error) = User.CreateExisting(
-               userEntity.Id,
-               userEntity.Email,
-               userEntity.PhoneNumber,
-               (UserRole)userEntity.Role,
-               userEntity.PasswordHash,
-               userEntity.IsTwoFactorEnabled,
-               userEntity.IsVerified,
-               userEntity.IsBlocked,
-               userEntity.IsSoftDeleted,
-               userEntity.IsPermanantlyDeleted,
-               userEntity.CreatedAt,
-               userEntity.DeletedAt
-            );
-
-            return user;
+            if (userEntity == null) return null;
+            
+            return MapUserEntityToExistingDomain(userEntity);
         }
 
-        public async Task AddUserAsync(User user)
+        public async Task AddUserAsync(User user, CancellationToken ct)
         {
             if (user == null) throw new ArgumentNullException(nameof(user));
 
             var userEntity = MapToUserEntity(user);
-            await _context.Users.AddAsync(userEntity);
+
+            await _context.Users.AddAsync(userEntity, ct);
         }
 
-        public async Task AddPersonProfileAsync(PersonProfile profile)
-        {
-            if (profile == null) throw new ArgumentNullException(nameof(profile));
-
-            var profileEntity = MapToEntity(profile);
-            await _context.Set<PersonProfileEntity>().AddAsync(profileEntity);
-        }
-
-        public async Task AddCompanyProfileAsync(CompanyProfile profile)
+        public async Task AddPersonProfileAsync(PersonProfile profile, CancellationToken ct)
         {
             if (profile == null) throw new ArgumentNullException(nameof(profile));
 
             var profileEntity = MapToEntity(profile);
 
-            await _context.Set<CompanyProfileEntity>().AddAsync(profileEntity);
+            await _context.Set<PersonProfileEntity>().AddAsync(profileEntity, ct);
         }
 
-        public async Task AddPersonUserAsync(User user, PersonProfile profile)
+        public async Task AddCompanyProfileAsync(CompanyProfile profile, CancellationToken ct)
         {
-            var userEntity = MapToUserEntity(user);
-
+            if (profile == null) throw new ArgumentNullException(nameof(profile));
 
             var profileEntity = MapToEntity(profile);
 
-            await AddUserWithProfileAsync(userEntity, profileEntity);
+            await _context.Set<CompanyProfileEntity>().AddAsync(profileEntity, ct);
         }
 
-        public async Task AddCompanyUserAsync(User user, CompanyProfile profile)
+        public async Task AddPersonUserAsync(User user, PersonProfile profile, CancellationToken ct)
         {
             var userEntity = MapToUserEntity(user);
 
             var profileEntity = MapToEntity(profile);
 
-            await AddUserWithProfileAsync(userEntity, profileEntity);
+            await AddUserWithProfileAsync(userEntity, profileEntity, ct);
         }
 
-        public async Task<User?> FindUserByEmailOrPhoneAsync(string? email, string? phoneNumber)
+        public async Task AddCompanyUserAsync(User user, CompanyProfile profile, CancellationToken ct)
+        {
+            var userEntity = MapToUserEntity(user);
+
+            var profileEntity = MapToEntity(profile);
+
+            await AddUserWithProfileAsync(userEntity, profileEntity, ct);
+        }
+
+        public async Task<User?> FindUserByEmailOrPhoneAsync(CancellationToken ct, string? email, string? phoneNumber)
         {
             var userEntity = await _context.Users
                 .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(u => (u.Email == email || u.PhoneNumber == phoneNumber) && u.IsPermanantlyDeleted != true);
+                .FirstOrDefaultAsync(u => (u.Email == email || u.PhoneNumber == phoneNumber) && u.IsPermanantlyDeleted != true, ct);
 
             if (userEntity == null)
             {
                 return null;
             }
 
-            var (user, error) = User.CreateExisting(
-                userEntity.Id,
-                userEntity.Email,
-                userEntity.PhoneNumber,
-                (UserRole)userEntity.Role,
-                userEntity.PasswordHash,
-                userEntity.IsTwoFactorEnabled,
-                userEntity.IsVerified,
-                userEntity.IsBlocked,
-                userEntity.IsSoftDeleted,
-                userEntity.IsPermanantlyDeleted,
-                userEntity.CreatedAt,
-                userEntity.DeletedAt
-            );
-
-            if (user == null)
-            {
-                throw new Exception($"User entity is invalid: {error}");
-            }
-
-            return user;
+            return MapUserEntityToExistingDomain(userEntity);
         }
 
-        public async Task SoftDeleteUserAsync(Guid userId)
+        public async Task SoftDeleteUserAsync(Guid userId, CancellationToken ct)
         {
             var deletedUser = await _context.Users
                 .Where(u => u.Id == userId)
                 .ExecuteUpdateAsync(setter => setter
                     .SetProperty(u => u.IsSoftDeleted, true)
-                    .SetProperty(u => u.DeletedAt, DateTime.UtcNow));
+                    .SetProperty(u => u.DeletedAt, DateTime.UtcNow), ct);
 
             if (deletedUser == 0) throw new InvalidOperationException("User not found");
         }
 
-        public async Task RestoreUserAsync(Guid userId)
+        public async Task RestoreUserAsync(Guid userId, CancellationToken ct)
         {
             var deletedUser = await _context.Users
                 .Where(u => u.Id == userId)
                 .ExecuteUpdateAsync(setter => setter
                     .SetProperty(u => u.IsSoftDeleted, false)
-                    .SetProperty(u => u.DeletedAt, (DateTime?)null));
+                    .SetProperty(u => u.DeletedAt, (DateTime?)null), ct);
 
             if (deletedUser == 0) throw new InvalidOperationException("User not found");
         }
 
-        public async Task PermanantlyDeleteUserAsync(Guid userId)
+        public async Task PermanantlyDeleteUserAsync(Guid userId, CancellationToken ct)
         {
             var deletedUser = await _context.Users
                 .Where(u => u.Id == userId)
                 .ExecuteUpdateAsync(setter => setter
-                    .SetProperty(u => u.IsPermanantlyDeleted, true));
+                    .SetProperty(u => u.IsPermanantlyDeleted, true), ct);
 
             if (deletedUser == 0) throw new InvalidOperationException("User not found");
         }
@@ -156,6 +119,7 @@ namespace UserService.Persistance.PostgreSQL.Repositories
         public async Task PatchPersonProfileAsync
         (
             Guid userId,
+            CancellationToken ct,
             string? firstName,
             string? lastName,
             string? mainPhotoUrl,
@@ -211,12 +175,13 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             }
 
             _context.PersonProfiles.Update(profile);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
 
         public async Task PatchCompanyProfileAsync
         (
-            Guid userId, 
+            Guid userId,
+            CancellationToken ct,
             string? name, 
             string? country, 
             string? region, 
@@ -264,20 +229,20 @@ namespace UserService.Persistance.PostgreSQL.Repositories
                 profile.MainPhotoUrl = mainPhotoUrl == "__DELETE__" ? null : mainPhotoUrl;
 
             if (!string.IsNullOrEmpty(description))
-                profile.Description = description;
+                profile.Description = description == "__DELETE__" ? null : description;
 
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
 
-        public async Task PatchUserInfoAsync(Guid userId, string? email = null, string? phoneNumber = null, string? passwordHash = null)
+        public async Task PatchUserInfoAsync(Guid userId, CancellationToken ct, string? email = null, string? phoneNumber = null, string? passwordHash = null)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+
             if (user == null) throw new InvalidOperationException("User has not been found");
 
             if (!string.IsNullOrEmpty(email))
             {
-
-                var usersWithThisEmail = await _context.Users.FirstOrDefaultAsync(u => u.Email == email && u.IsSoftDeleted == false);
+                var usersWithThisEmail = await _context.Users.FirstOrDefaultAsync(u => u.Email == email && u.IsPermanantlyDeleted == false);
 
                 if (usersWithThisEmail != null) throw new InvalidOperationException("User with this email already exists");
 
@@ -286,7 +251,7 @@ namespace UserService.Persistance.PostgreSQL.Repositories
 
             if (!string.IsNullOrEmpty(phoneNumber))
             {
-                var usersWithThisPhoneNumber= await _context.Users.FirstOrDefaultAsync(u => u.PhoneNumber == phoneNumber && u.IsSoftDeleted == false);
+                var usersWithThisPhoneNumber= await _context.Users.FirstOrDefaultAsync(u => u.PhoneNumber == phoneNumber && u.IsPermanantlyDeleted == false);
 
                 if (usersWithThisPhoneNumber != null) throw new InvalidOperationException("User with this phone number already exists");
             }
@@ -294,25 +259,25 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             if (!string.IsNullOrEmpty(passwordHash))
                 user.PasswordHash = passwordHash;
 
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
 
-        public async Task<string?> GetUserMainPhotoUrlByUserId(Guid userId)
+        public async Task<string?> GetUserMainPhotoUrlByUserId(Guid userId, CancellationToken ct)
         {
             var user = await _context.Users
                 .Include(u => u.PersonProfile)
                 .Include(u => u.CompanyProfile)
-                .FirstOrDefaultAsync(u => u.Id == userId);
+                .FirstOrDefaultAsync(u => u.Id == userId, ct);
 
             if (user == null) return null;
 
             return user.PersonProfile?.MainPhotoUrl ?? user.CompanyProfile?.MainPhotoUrl;
         }
 
-        public async Task<PersonProfile?> GetPersonUserInfoByIdAsync(Guid id)
+        public async Task<PersonProfile?> GetPersonUserInfoByIdAsync(Guid id, CancellationToken ct)
         {
             var personUserEntity = await _context.PersonProfiles
-                .FirstOrDefaultAsync(p => p.UserId == id);
+                .FirstOrDefaultAsync(p => p.UserId == id, ct);
 
             if (personUserEntity == null)
             {
@@ -329,9 +294,9 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             return person;
         }
 
-        public async Task<CompanyProfile?> GetCompanyUserInfoByIdAsync(Guid id)
+        public async Task<CompanyProfile?> GetCompanyUserInfoByIdAsync(Guid id, CancellationToken ct)
         {
-            var companyUserEnity= await _context.CompanyProfiles.FirstOrDefaultAsync(p => p.UserId == id);
+            var companyUserEnity= await _context.CompanyProfiles.FirstOrDefaultAsync(p => p.UserId == id, ct);
 
             if (companyUserEnity == null)
             {
@@ -348,16 +313,16 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             return company;
         }
 
-        public async Task<Guid?> GetUserIdByEmailAsync(string email)
+        public async Task<Guid?> GetUserIdByEmailAsync(string email, CancellationToken ct)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email.Trim() && u.IsPermanantlyDeleted == false);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email.Trim() && u.IsPermanantlyDeleted == false, ct);
 
             return user?.Id;
         }
 
-        public async Task<string?> GetUserEmailById(Guid id)
+        public async Task<string?> GetUserEmailById(Guid id, CancellationToken ct)
         {
-            var userEntity = await _context.Users.FirstOrDefaultAsync(u => u.Id == id);
+            var userEntity = await _context.Users.FirstOrDefaultAsync(u => u.Id == id, ct);
 
             if (userEntity == null)
                 throw new Exception("User with such id doesnt exist");
@@ -367,9 +332,9 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             return email;
         }
 
-        public async Task<string?> GetPasswordHashByUserId(Guid userId)
+        public async Task<string?> GetPasswordHashByUserId(Guid userId, CancellationToken ct)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
             if (user == null) throw new InvalidOperationException("User not found");
 
             var passwordHash = user.PasswordHash;
@@ -377,12 +342,12 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             return passwordHash;
         }
 
-        public async Task ToggleTwoFactorAuthentication(Guid userId)
+        public async Task ToggleTwoFactorAuthentication(Guid userId, CancellationToken ct)
         {
             var user = await _context.Users
                 .Where(u => u.Id == userId)
                 .Select(u => new { u.IsTwoFactorEnabled })
-                .SingleOrDefaultAsync();
+                .SingleOrDefaultAsync(ct);
 
             if (user == null)
                 throw new InvalidOperationException("User not found");
@@ -392,68 +357,36 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             var affected = await _context.Users
                 .Where(u => u.Id == userId)
                 .ExecuteUpdateAsync(setter => setter
-                    .SetProperty(u => u.IsTwoFactorEnabled, newValue));
+                    .SetProperty(u => u.IsTwoFactorEnabled, newValue), ct);
 
             if (affected == 0)
                 throw new InvalidOperationException("User not found");
         }
 
-        public async Task<User?> GetUserByEmail(string email)
+        public async Task<User?> GetUserByEmail(string email, CancellationToken ct)
         {
             var userEntity = await _context.Users
                 .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(u => (u.Email == email && u.IsPermanantlyDeleted != true));
+                .FirstOrDefaultAsync(u => (u.Email == email && u.IsPermanantlyDeleted != true), ct);
 
             if (userEntity == null)
-            {
                 return null;
-            }
 
-            var (user, error) = User.CreateExisting(
-              userEntity.Id,
-              userEntity.Email,
-              userEntity.PhoneNumber,
-              (UserRole)userEntity.Role,
-              userEntity.PasswordHash,
-              userEntity.IsTwoFactorEnabled,
-              userEntity.IsVerified,
-              userEntity.IsBlocked,
-              userEntity.IsSoftDeleted,
-              userEntity.IsPermanantlyDeleted,
-              userEntity.CreatedAt,
-              userEntity.DeletedAt
-           );
-
-            return user;
+            return MapUserEntityToExistingDomain(userEntity);
         }
 
-        public async Task<User?> GetUserByPhoneNumber(string phoneNumber)
+        public async Task<User?> GetUserByPhoneNumber(string phoneNumber, CancellationToken ct)
         {
             var userEntity = await _context.Users
                 .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(u => (u.PhoneNumber == phoneNumber && u.IsPermanantlyDeleted != true));
+                .FirstOrDefaultAsync(u => (u.PhoneNumber == phoneNumber && u.IsPermanantlyDeleted != true), ct);
 
             if (userEntity == null)
             {
                 return null;
             }
 
-            var (user, error) = User.CreateExisting(
-              userEntity.Id,
-              userEntity.Email,
-              userEntity.PhoneNumber,
-              (UserRole)userEntity.Role,
-              userEntity.PasswordHash,
-              userEntity.IsTwoFactorEnabled,
-              userEntity.IsVerified,
-              userEntity.IsBlocked,
-              userEntity.IsSoftDeleted,
-              userEntity.IsPermanantlyDeleted,
-              userEntity.CreatedAt,
-              userEntity.DeletedAt
-           );
-
-            return user;
+            return MapUserEntityToExistingDomain(userEntity);
         }
 
 
@@ -481,19 +414,19 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             return userEntity;
         }
 
-        private async Task AddUserWithProfileAsync(UserEntity user, object profile)
+        private async Task AddUserWithProfileAsync(UserEntity user, object profile, CancellationToken ct)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transaction = await _context.Database.BeginTransactionAsync(ct);
             try
             {
                 await _context.Users.AddAsync(user);
                 await _context.AddAsync(profile);
-                await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(ct);
 
-                await transaction.CommitAsync();
+                await transaction.CommitAsync(ct);
             }
             catch { 
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(ct);
                 throw;
             }
             finally
@@ -596,6 +529,28 @@ namespace UserService.Persistance.PostgreSQL.Repositories
             zipCode = NormalizeAddressField(zipCode);
         }
 
+        private User? MapUserEntityToExistingDomain(UserEntity userEntity)
+        {
+            var (user, error) = User.CreateExisting(
+                userEntity.Id,
+                userEntity.Email,
+                userEntity.PhoneNumber,
+                (UserRole)userEntity.Role,
+                userEntity.PasswordHash,
+                userEntity.IsTwoFactorEnabled,
+                userEntity.IsVerified,
+                userEntity.IsBlocked,
+                userEntity.IsSoftDeleted,
+                userEntity.IsPermanantlyDeleted,
+                userEntity.CreatedAt,
+                userEntity.DeletedAt
+            );
 
+            if (error != null) { 
+                throw new InvalidOperationException(error);
+            }
+
+            return user;
+        }
     }
 }

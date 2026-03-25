@@ -5,7 +5,6 @@ using Classified.Shared.Extensions.ServerJwtAuth.Classified.Shared.Extensions.Se
 using Microsoft.AspNetCore.Mvc;
 using UserService.Application.Abstactions;
 using UserService.Application.DTOs;
-using UserService.Application.Exeptions;
 using UserService.Application.Services;
 
 namespace UserService.API.Controllers
@@ -25,9 +24,9 @@ namespace UserService.API.Controllers
 
         [AuthorizeServerJwt(InternalServices.AuthService)]
         [HttpGet("get-user-id-by-email-async")]
-        public async Task<Guid?> GetUserIdByEmailAsync(string email)
+        public async Task<Guid?> GetUserIdByEmailAsync(string email, CancellationToken ct)
         {
-            var result = await _userService.GetUserIdByEmailAsync(email);
+            var result = await _userService.GetUserIdByEmailAsync(email, ct);
 
             return result;
         }
@@ -35,60 +34,44 @@ namespace UserService.API.Controllers
         [AuthorizeServerJwt(InternalServices.AuthService)]
         [AuthorizeServerJwtBySub("verify-user-credentials")]
         [HttpPost("verify-user-credentials")]
-        public async Task<IActionResult> VerifyUserCredentials([FromBody] VerifyUserCredentialsRequestDto dto)
+        public async Task<IActionResult> VerifyUserCredentials([FromBody] VerifyUserCredentialsRequestDto dto, CancellationToken ct)
         {
-            try
-            {
-                var verifiedUserDto = await _userService.VerifyUsersCredentials(dto.PhoneOrEmail, dto.Password);
+            var verifiedUserDto = await _userService.VerifyUsersCredentials(dto.PhoneOrEmail, dto.Password, ct);
 
-                return Ok(verifiedUserDto);
-            }
-            catch (InvalidOperationException e)
-            {
-                return NotFound(e.Message);
-            }
+            return Ok(verifiedUserDto);
         }
 
         [AuthorizeServerJwt(InternalServices.AuthService)]
         [HttpGet("get-verified-user-dto-by-id")]
-        public async Task<VerifiedUserDto?> GetVerifiedUserDtoById(string userId)
+        public async Task<VerifiedUserDto?> GetVerifiedUserDtoById(string userId, CancellationToken ct)
         {
-            var user = await _userService.GetVerifiedUserDtoById(Guid.Parse(userId));
+            var user = await _userService.GetVerifiedUserDtoById(Guid.Parse(userId), ct);
 
             return user;
         }
 
         [AuthorizeServerJwt(InternalServices.AuthService)]
         [HttpPost("connect-oauth-account-to-existing-user")]
-        public async Task<IActionResult> ConnectOauthAccountToExistingUser([FromBody] ConnectOAuthAccountRequest request)
+        public async Task<IActionResult> ConnectOauthAccountToExistingUser([FromBody] ConnectOAuthAccountRequest request, CancellationToken ct)
         {
-            try
-            {
-                await _userOAuthAccountService.ConnectOauthAccountToExistingUser(request.Provider, request.ProviderId, request.UserId);
-                return Ok();
-            }
-            catch (OAuthAccountAlreadyLinkedException e)
-            {
-                return Conflict(e.Message);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { Message = ex.Message });
-            }
+            await _userOAuthAccountService.ConnectOauthAccountToExistingUser(request.Provider, request.ProviderId, request.UserId, ct);
+
+            return Ok();
         }
 
         [AuthorizeServerJwt(InternalServices.AuthService)]
         [HttpGet("get-user-o-auth-account-by-provider-and-provider-user-id-async")]
         public async Task<ActionResult<UserOAuthAccountDto>> GetUserOAuthAccountByProviderAndProviderUserIdAsync(
             string providerName,
-            string providerUserId)
+            string providerUserId,
+            CancellationToken ct)
         {
             if (!Enum.TryParse<OAuthProvider>(providerName, true, out var provider))
             {
                 return BadRequest("Unknown OAuth provider");
             }
 
-            var result = await _userOAuthAccountService.GetUserOAuthAccountByProviderAndProviderUserId(provider, providerUserId);
+            var result = await _userOAuthAccountService.GetUserOAuthAccountByProviderAndProviderUserId(provider, providerUserId, ct);
 
             if (result == null)
             {

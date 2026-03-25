@@ -1,7 +1,7 @@
 ﻿using Classified.Shared.Infrastructure.MicroserviceJwt;
 using System.Net.Http.Headers;
 
-namespace Classified.Shared.Extensions
+namespace Classified.Shared.Libs
 {
     public static class HttpClientExtensions
     {

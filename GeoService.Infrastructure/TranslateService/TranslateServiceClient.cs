@@ -2,6 +2,7 @@
 using Classified.Shared.DTOs;
 using Classified.Shared.Extensions;
 using Classified.Shared.Infrastructure.MicroserviceJwt;
+using Classified.Shared.Libs;
 using GeoService.Domain.Abstractions;
 using Microsoft.AspNetCore.WebUtilities;
 using System.Net.Http.Json;
@@ -20,12 +21,14 @@ namespace GeoService.Infrastructure.TranslateService
             _microserviceJwtProvider = microserviceJwtProvider;
         }
 
+        private readonly string _serviceName = InternalServices.TranslationService;
+
         public async Task<Dictionary<string, string>> TranslateAsync(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
                 return new();
 
-            _http.SetServerJwt(_microserviceJwtProvider, InternalServices.GeoService, InternalServices.TranslationService);
+            _http.SetServerJwt(_microserviceJwtProvider, _serviceName);
 
             var queryParams = new Dictionary<string, string?>
             {

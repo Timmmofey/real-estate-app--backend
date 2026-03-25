@@ -4,7 +4,6 @@ using AuthService.Persistance.Entities;
 using Classified.Shared.Constants;
 using Classified.Shared.Entities;
 using Microsoft.EntityFrameworkCore;
-using System.Net;
 
 namespace AuthService.Persistance.Repositories
 {
@@ -17,8 +16,10 @@ namespace AuthService.Persistance.Repositories
             _context = context;
         }
 
-        public async Task AddNewRefreshTokenAsync(Session rt)
+        public async Task AddNewRefreshTokenAsync(Session rt, CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
+
             var sessionEntity = new SessionEntity
             {
                 Id = rt.Id,
@@ -35,14 +36,14 @@ namespace AuthService.Persistance.Repositories
                 Settlemnet = rt.Settlemnet,
             };
 
-            await _context.Sessions.AddAsync(sessionEntity);
-            await _context.SaveChangesAsync();
+            await _context.Sessions.AddAsync(sessionEntity, ct);
+            await _context.SaveChangesAsync(ct);
         }
 
-        public async Task AddOrUpdateRefreshTokenAsync(Session rt)
+        public async Task AddOrUpdateRefreshTokenAsync(Session rt, CancellationToken ct)
         {
             var existingEntity = await _context.Sessions
-                .FirstOrDefaultAsync(srt => srt.DeviceId == rt.DeviceId);
+                .FirstOrDefaultAsync(srt => srt.DeviceId == rt.DeviceId && srt.UserId == rt.UserId, ct);
 
             if (existingEntity != null)
             {
@@ -59,7 +60,6 @@ namespace AuthService.Persistance.Repositories
             }
             else
             {
-                // Создаём новую запись
                 var newEntity = new SessionEntity
                 {
                     Id = rt.Id,
@@ -76,21 +76,23 @@ namespace AuthService.Persistance.Repositories
                     Settlemnet = rt.Settlemnet,
                 };
 
-                await _context.Sessions.AddAsync(newEntity);
+                await _context.Sessions.AddAsync(newEntity, ct);
             }
 
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
         }
 
-        public async Task<Session?> UpdateAndRotateRefreshTokenAsync(Guid oldRt, Guid deviceId, Guid newRefreshToken, string? deviceName = null, DeviceType? deviceType = null, string? ipAddress = null, string? country = null, string? city = null)
+        public async Task<Session?> UpdateAndRotateRefreshTokenAsync(Guid oldRt, Guid deviceId, Guid newRefreshToken, CancellationToken ct, string? deviceName = null, DeviceType? deviceType = null, string? ipAddress = null, string? country = null, string? city = null)
         {
             var existingEntity = await _context.Sessions
-                .FirstOrDefaultAsync(srt => srt.DeviceId == deviceId && srt.Token == oldRt);
+                .FirstOrDefaultAsync(srt => srt.DeviceId == deviceId && srt.Token == oldRt, ct);
 
             if (existingEntity == null)
-                throw new Exception($"User Refresh Token has not been found");
+                throw new InvalidOperationException($"User Refresh Token has not been found");
 
             existingEntity.Token = newRefreshToken;
+            existingEntity.CreatedAt = DateTime.UtcNow;
+            existingEntity.ExpiresAt = DateTime.UtcNow.AddDays(15);
 
             if(deviceName != null)
                 existingEntity.DeviceName = deviceName;
@@ -107,66 +109,66 @@ namespace AuthService.Persistance.Repositories
             if(city != null)    
                 existingEntity.Settlemnet = city;
 
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
 
             var (session, error) = Session.Create(existingEntity.Id, existingEntity.UserId, (UserRole)existingEntity.Role, existingEntity.Token, existingEntity.DeviceId, existingEntity.DeviceName, existingEntity.DeviceType, existingEntity.IpAddress, existingEntity.Country, existingEntity.Settlemnet, existingEntity.CreatedAt, existingEntity.ExpiresAt);
 
             if (session == null)
             {
-                throw new Exception($"User Refresh Token is invalid: {error}");
+                throw new InvalidOperationException($"User Refresh Token is invalid: {error}");
             }
 
             return session;
         }
 
 
-        public async Task<bool> DeleteRefreshTokenByUserIdAndIdAsync(Guid userId, Guid id)
+        public async Task<bool> DeleteRefreshTokenByUserIdAndIdAsync(Guid userId, Guid id, CancellationToken ct)
         {
             var deletedCount = await _context.Sessions
                 .Where(rt => rt.UserId == userId && rt.Id == id)
-                .ExecuteDeleteAsync();
+                .ExecuteDeleteAsync(ct);
 
             return deletedCount > 0;
         }
 
 
-        public async Task DeleteRefreshTokenByUserIdAndDeviceIDAsync(Guid deviceId)
+        public async Task DeleteRefreshTokenByUserIdAndDeviceIDAsync(Guid deviceId, CancellationToken ct)
         {
-            await _context.Sessions.Where(rt => rt.DeviceId == deviceId).ExecuteDeleteAsync();
+            await _context.Sessions.Where(rt => rt.DeviceId == deviceId).ExecuteDeleteAsync(ct);
         }
 
-        public async Task DeleteAllRefreskTokensByUserId(Guid userId)
+        public async Task DeleteAllRefreskTokensByUserId(Guid userId, CancellationToken ct)
         {
-            await _context.Sessions.Where(rt => rt.UserId == userId).ExecuteDeleteAsync();
+            await _context.Sessions.Where(rt => rt.UserId == userId).ExecuteDeleteAsync(ct);
         }
 
-        public async Task<ICollection<SessionEntity>> FindRefreshTokensByUserId(Guid userId)
+        public async Task<ICollection<SessionEntity>> FindRefreshTokensByUserId(Guid userId, CancellationToken ct)
         {
-            return await _context.Sessions.Where(rt => rt.UserId == userId).ToListAsync();
+            return await _context.Sessions.Where(rt => rt.UserId == userId).ToListAsync(ct);
         }
 
-        public async Task<Session> FindSessionByRefreshTokenAndDeviceId(Guid refreshToken,Guid deviceId)
+        public async Task<Session> FindSessionByRefreshTokenAndDeviceId(Guid refreshToken,Guid deviceId, CancellationToken ct)
         {
-            var refreshTokenEntity = await _context.Sessions.FirstOrDefaultAsync(s => s.DeviceId == deviceId && s.Token == refreshToken);
+            var refreshTokenEntity = await _context.Sessions.FirstOrDefaultAsync(s => s.DeviceId == deviceId && s.Token == refreshToken, ct);
 
             if (refreshTokenEntity == null)
             {
-                throw new Exception($"User Refresh Token has not been found");
+                throw new InvalidOperationException($"User Refresh Token has not been found");
             }
 
             var (session, error) = Session.Create(refreshTokenEntity.Id, refreshTokenEntity.UserId, (UserRole)refreshTokenEntity.Role, refreshTokenEntity.Token, refreshTokenEntity.DeviceId, refreshTokenEntity.DeviceName, refreshTokenEntity.DeviceType, refreshTokenEntity.IpAddress, refreshTokenEntity.Country, refreshTokenEntity.Settlemnet, refreshTokenEntity.CreatedAt, refreshTokenEntity.ExpiresAt);
 
             if (session == null)
             {
-                throw new Exception($"User Refresh Token is invalid: {error}");
+                throw new InvalidOperationException($"User Refresh Token is invalid: {error}");
             }
 
             return session;
         }
 
-        public async Task<ICollection<Session>> GetUsersSessionsAsync(Guid userId)
+        public async Task<ICollection<Session>> GetUsersSessionsAsync(Guid userId, CancellationToken ct)
         {
-            var refreshTokensEnities = await _context.Sessions.Where(rt => rt.UserId == userId).ToListAsync();
+            var refreshTokensEnities = await _context.Sessions.Where(rt => rt.UserId == userId).ToListAsync(ct);
             var refreshTokens = new List<Session>();
             foreach (var entity in refreshTokensEnities)
             {

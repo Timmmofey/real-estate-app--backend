@@ -24,6 +24,10 @@ namespace UserService.Persistance.PostgreSQL.Configurations
 
             builder.Property(u => u.Role)
                   .HasConversion<string>();
+
+            builder.HasIndex(u => u.Email)
+                .IsUnique()
+                .HasFilter("\"IsPermanantlyDeleted\" = false");
         }
     }
 
@@ -42,10 +46,14 @@ namespace UserService.Persistance.PostgreSQL.Configurations
     {
         public void Configure(EntityTypeBuilder<CompanyProfileEntity> builder)
         {
-            builder.HasKey(p => p.UserId);
+            builder.HasKey(с => с.UserId);
 
-            builder.HasOne(p => p.User)
-                .WithOne(u => u.CompanyProfile);
+            builder.HasOne(с => с.User)
+                .WithOne(с => с.CompanyProfile);
+
+            builder.HasIndex(с => с.СompanyRegistrationNumber)
+                .IsUnique()
+                .HasFilter("\"IsPermanantlyDeleted\" = false");
         }
     }
 }

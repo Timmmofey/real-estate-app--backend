@@ -1,5 +1,4 @@
-﻿using Amazon;
-using Classified.Shared.Constants;
+﻿using Classified.Shared.Constants;
 using Classified.Shared.DTOs;
 using Classified.Shared.Extensions.ErrorHandler.Errors;
 using Classified.Shared.Infrastructure.EmailService;
@@ -9,10 +8,8 @@ using Confluent.Kafka;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Localization;
 using Newtonsoft.Json;
-using UserService.API.Resources;
 using UserService.Application.Abstactions;
 using UserService.Application.DTOs;
-using UserService.Application.Exeptions;
 using UserService.Domain.Abstactions;
 using UserService.Domain.Consts;
 using UserService.Domain.Models;
@@ -34,10 +31,10 @@ namespace UserService.Application.Services
         private readonly IAuthServiceClient _authService;
         private readonly IGeoServiceClient _geoServiceClient;
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IStringLocalizer<Messages> _localizer;
+        private readonly IStringLocalizer<UserService> _localizer;
 
 
-        public UserService(IUserRepository userRepository, IPasswordHasher passwordHasher, IFileStorageService fileStorageService, IKafkaProducer kafkaProducer, IRedisService redisService, IEmailService emailService, IAuthServiceClient authService, IUnitOfWork unitOfWork, IUserOAuthAccountRepository userOAuthAccountRepository, IGeoServiceClient geoServiceClient, IStringLocalizer<Messages> localizer)
+        public UserService(IUserRepository userRepository, IPasswordHasher passwordHasher, IFileStorageService fileStorageService, IKafkaProducer kafkaProducer, IRedisService redisService, IEmailService emailService, IAuthServiceClient authService, IUnitOfWork unitOfWork, IUserOAuthAccountRepository userOAuthAccountRepository, IGeoServiceClient geoServiceClient, IStringLocalizer<UserService> localizer)
         {
             _userRepository = userRepository;
             _passwordHasher = passwordHasher;
@@ -52,54 +49,9 @@ namespace UserService.Application.Services
             _localizer = localizer;
         }
 
-        //public async Task<Guid> CreatePersonUserAsync(CreatePersonUserDto dto)
-        //{
-        //    await FindExistingOrResentlyDeletedUser(dto.Email, dto.PhoneNumber);
-
-        //    string? personMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, S3FolderName.UserProfileImages);
-
-
-        //    var userId = Guid.NewGuid();
-        //    var hashedPassword = _passwordHasher.Generate(dto.Password);
-
-        //    var (user, userError) = User.CreateNew(
-        //        userId,
-        //        dto.Email,
-        //        dto.PhoneNumber,
-        //        hashedPassword,
-        //        UserRole.Person
-        //    );
-
-        //    if (user == null)
-        //        throw new Exception(userError);
-
-        //    var (profile, profileError) = PersonProfile.Create(
-        //        userId,
-        //        dto.FirstName,
-        //        dto.LastName,
-        //        personMainPhotoUrl,
-        //        dto.Country,
-        //        dto.Region,
-        //        dto.Settlement,
-        //        dto.ZipCode
-        //    );
-
-        //    await ValidateAdrress(dto.Country, dto.Region, dto.Settlement);
-
-        //    if (profile == null)
-        //        throw new Exception(profileError);
-
-        //    await _userRepository.AddPersonUserAsync(user, profile);
-
-        //    return userId;
-        //}
-
-        public async Task<Guid> CreatePersonUserAsync(CreatePersonUserDto dto)
+        public async Task<Guid> CreatePersonUserAsync(CreatePersonUserDto dto, CancellationToken ct)
         {
-            await ValidateEmailAndPhoneNumberUniquenessAsync(dto.Email, dto.PhoneNumber);
-
-            string? personMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, S3FolderName.UserProfileImages);
-
+            await ValidateEmailAndPhoneNumberUniquenessAsync(dto.Email, dto.PhoneNumber, ct);
 
             var userId = Guid.NewGuid();
             var hashedPassword = _passwordHasher.Generate(dto.Password);
@@ -119,7 +71,7 @@ namespace UserService.Application.Services
                 userId,
                 dto.FirstName,
                 dto.LastName,
-                personMainPhotoUrl,
+                null,
                 dto.Country,
                 dto.Region,
                 dto.Settlement,
@@ -129,18 +81,23 @@ namespace UserService.Application.Services
             await ValidateAdrress(dto.Country, dto.Region, dto.Settlement);
 
             if (profile == null)
-                throw new Exception(profileError);
+                throw new NullReferenceException(profileError);
 
-            await _userRepository.AddPersonUserAsync(user, profile);
+            await _userRepository.AddPersonUserAsync(user, profile, ct);
+
+            if (dto.MainPhoto != null)
+            {
+                var photoUrl = await UploadPhotoAsync(dto.MainPhoto, S3FolderName.UserProfileImages);
+
+                await _userRepository.PatchPersonProfileAsync(userId, ct, null, null, photoUrl, null, null, null, null);
+            }
 
             return userId;
         }
 
-        public async Task<Guid> CreateCompanyUserAsync(CreateCompanyUserDto dto)
+        public async Task<Guid> CreateCompanyUserAsync(CreateCompanyUserDto dto, CancellationToken ct)
         {
-            await ValidateEmailAndPhoneNumberUniquenessAsync(dto.Email, dto.PhoneNumber);
-
-            string? companyMainPhotoUrl = await UploadPhotoAsync(dto.MainPhoto, S3FolderName.UserProfileImages);
+            await ValidateEmailAndPhoneNumberUniquenessAsync(dto.Email, dto.PhoneNumber, ct);
 
             var userId = Guid.NewGuid();
             var hashedPassword = _passwordHasher.Generate(dto.Password);
@@ -166,7 +123,7 @@ namespace UserService.Application.Services
                 dto.RegistrationAdress,
                 dto.СompanyRegistrationNumber,
                 dto.EstimatedAt,
-                companyMainPhotoUrl,
+                null,
                 dto.Description
             );
 
@@ -175,14 +132,21 @@ namespace UserService.Application.Services
 
             await ValidateAdrress(dto.Country, dto.Region, dto.Settlement);
 
-            await _userRepository.AddCompanyUserAsync(user, profile);
+            await _userRepository.AddCompanyUserAsync(user, profile, ct);
+
+            if (dto.MainPhoto != null)
+            {
+                var photoUrl = await UploadPhotoAsync( dto.MainPhoto, S3FolderName.UserProfileImages);
+
+                await _userRepository.PatchCompanyProfileAsync(userId, ct, null, null, null, null, null, null, null, null, photoUrl, null);
+            }
 
             return userId;
         }
 
-        public async Task<Guid> CreatePersonUserFromOAuthAsync(CreatePersonUserOAuthDto dto)
+        public async Task<Guid> CreatePersonUserFromOAuthAsync(CreatePersonUserOAuthDto dto, CancellationToken ct)
         {
-            await FindExistingOrResentlyDeletedUser(dto.Email, dto.PhoneNumber);
+            await FindExistingOrResentlyDeletedUser(dto.Email, dto.PhoneNumber, ct);
 
             var userId = Guid.NewGuid();
             string? hashedPassword = null;
@@ -230,9 +194,9 @@ namespace UserService.Application.Services
                 if (oAuthAccount == null)
                     throw new Exception(oAuthAccountError);
 
-                await _userRepository.AddUserAsync(user);
-                await _userRepository.AddPersonProfileAsync(profile);
-                await _userOAuthAccountRepository.AddUserOAuthAccountAsync(oAuthAccount);
+                await _userRepository.AddUserAsync(user, ct);
+                await _userRepository.AddPersonProfileAsync(profile, ct);
+                await _userOAuthAccountRepository.AddUserOAuthAccountAsync(oAuthAccount,ct);
 
 
                 await _unitOfWork.CommitAsync();
@@ -249,15 +213,15 @@ namespace UserService.Application.Services
                     dto.MainPhoto,
                     S3FolderName.UserProfileImages);
 
-                await _userRepository.PatchPersonProfileAsync(userId, null, null, photoUrl, null, null, null, null);
+                await _userRepository.PatchPersonProfileAsync(userId,ct, null, null, photoUrl, null, null, null, null);
             }
 
             return userId;
         }
 
-        public async Task<Guid> CreateCompanyUserFromOAuthAsync(CreateCompanyUserOAuthDto dto)
+        public async Task<Guid> CreateCompanyUserFromOAuthAsync(CreateCompanyUserOAuthDto dto, CancellationToken ct)
         {
-            await FindExistingOrResentlyDeletedUser(dto.Email, dto.PhoneNumber);
+            await FindExistingOrResentlyDeletedUser(dto.Email, dto.PhoneNumber, ct);
 
             var userId = Guid.NewGuid();
             string? hashedPassword = null;
@@ -285,10 +249,10 @@ namespace UserService.Application.Services
                 var (profile, profileError) = CompanyProfile.Create(
                     userId,
                     dto.Name,
-                    dto.Country ?? throw new Exception("Country is required"),
-                    dto.Region ?? throw new Exception("Region is required"),
-                    dto.Settlement ?? throw new Exception("Settlement is required"),
-                    dto.ZipCode ?? throw new Exception("ZipCode is required"),
+                    dto.Country ?? throw new ArgumentException("Country is required"),
+                    dto.Region ?? throw new ArgumentException("Region is required"),
+                    dto.Settlement ?? throw new ArgumentException("Settlement is required"),
+                    dto.ZipCode ?? throw new ArgumentException("ZipCode is required"),
                     dto.RegistrationAdress,
                     dto.СompanyRegistrationNumber,
                     dto.EstimatedAt,
@@ -308,9 +272,9 @@ namespace UserService.Application.Services
                 if (oAuthAccount == null)
                     throw new Exception(oAuthAccountError);
 
-                await _userRepository.AddUserAsync(user);
-                await _userRepository.AddCompanyProfileAsync(profile);
-                await _userOAuthAccountRepository.AddUserOAuthAccountAsync(oAuthAccount);
+                await _userRepository.AddUserAsync(user, ct);
+                await _userRepository.AddCompanyProfileAsync(profile, ct);
+                await _userOAuthAccountRepository.AddUserOAuthAccountAsync(oAuthAccount,ct);
 
 
                 await _unitOfWork.CommitAsync();
@@ -327,24 +291,25 @@ namespace UserService.Application.Services
                     dto.MainPhoto,
                     S3FolderName.UserProfileImages);
 
-                await _userRepository.PatchCompanyProfileAsync(userId, null, null, null, null, null, null, null, null, photoUrl, null);
+                await _userRepository.PatchCompanyProfileAsync(userId, ct, null, null, null, null, null, null, null, null, photoUrl, null);
             }
 
             return userId;
         }
 
-        public async Task<VerifiedUserDto> VerifyUsersCredentials(string emailOrPhone, string password)
+        public async Task<VerifiedUserDto> VerifyUsersCredentials(string emailOrPhone, string password, CancellationToken ct)
         {
-            var existingUser = await _userRepository.FindUserByEmailOrPhoneAsync(emailOrPhone, emailOrPhone);
+            var existingUser = await _userRepository.FindUserByEmailOrPhoneAsync(ct, emailOrPhone, emailOrPhone);
             var isDeleted = false;
 
             if (existingUser?.PasswordHash == null)
-                throw new UserDoesntHavePasswordException();
+                throw new NullReferenceException();
 
             if (existingUser == null || !_passwordHasher.Verify(password, existingUser.PasswordHash) || existingUser.IsPermanantlyDeleted == true || (existingUser.IsSoftDeleted == true && existingUser.DeletedAt < DateTime.UtcNow.AddMonths(-6)))
             { 
-                throw new NotValidCredentialsException();
+                throw new UnauthorizedAccessException("Provided credentials are not valid.");
             }
+            
 
             if (existingUser.IsSoftDeleted == true && existingUser.DeletedAt > DateTime.UtcNow.AddMonths(-6) && existingUser.IsPermanantlyDeleted != true) 
             {
@@ -362,13 +327,13 @@ namespace UserService.Application.Services
             };
         }
 
-        public async Task PatchPersonProfileAsync(Guid userId, EditPersonUserRequest updatedProfile)
+        public async Task PatchPersonProfileAsync(Guid userId, EditPersonUserRequest updatedProfile, CancellationToken ct)
         {
             // получаем текущее фото, если будет загрузка или удаление
             string? prevMainPhotoUrl = null;
             if (updatedProfile.MainPhoto != null || updatedProfile.DeleteMainPhoto == true)
             {
-                prevMainPhotoUrl = await _userRepository.GetUserMainPhotoUrlByUserId(userId);
+                prevMainPhotoUrl = await _userRepository.GetUserMainPhotoUrlByUserId(userId, ct);
             }
 
             // Подготовим URL нового фото или флаг удаления
@@ -391,17 +356,17 @@ namespace UserService.Application.Services
             await ValidateAdrress(updatedProfile.Country, updatedProfile.Region, updatedProfile.Settlement);
 
 
-            await _userRepository.PatchPersonProfileAsync(userId, updatedProfile?.FirstName, updatedProfile?.LastName, newPhotoUrl, updatedProfile?.Country, updatedProfile?.Region, updatedProfile?.Settlement, updatedProfile?.ZipCode);
+            await _userRepository.PatchPersonProfileAsync(userId, ct, updatedProfile?.FirstName, updatedProfile?.LastName, newPhotoUrl, updatedProfile?.Country, updatedProfile?.Region, updatedProfile?.Settlement, updatedProfile?.ZipCode);
         }
 
 
-        public async Task PatchCompanyProfileAsync(Guid userId, EditCompanyUserRequest updatedProfile)
+        public async Task PatchCompanyProfileAsync(Guid userId, EditCompanyUserRequest updatedProfile, CancellationToken ct)
         {
             // получаем текущее фото, если будет загрузка или удаление
             string? prevMainPhotoUrl = null;
             if (updatedProfile.MainPhoto != null || updatedProfile.DeleteMainPhoto == true)
             {
-                prevMainPhotoUrl = await _userRepository.GetUserMainPhotoUrlByUserId(userId);
+                prevMainPhotoUrl = await _userRepository.GetUserMainPhotoUrlByUserId(userId, ct);
             }
 
             // Подготовим URL нового фото или флаг удаления
@@ -423,44 +388,37 @@ namespace UserService.Application.Services
 
             await ValidateAdrress(updatedProfile.Country, updatedProfile.Region, updatedProfile.Settlement);
 
-            await _userRepository.PatchCompanyProfileAsync(userId, updatedProfile?.Name, updatedProfile?.Country, updatedProfile?.Region, updatedProfile?.Settlement, updatedProfile?.ZipCode, updatedProfile?.RegistrationAdress, updatedProfile?.СompanyRegistrationNumber, updatedProfile?.EstimatedAt, newPhotoUrl, updatedProfile?.Description);
+            await _userRepository.PatchCompanyProfileAsync(userId, ct, updatedProfile?.Name, updatedProfile?.Country, updatedProfile?.Region, updatedProfile?.Settlement, updatedProfile?.ZipCode, updatedProfile?.RegistrationAdress, updatedProfile?.СompanyRegistrationNumber, updatedProfile?.EstimatedAt, newPhotoUrl, updatedProfile?.Description);
         }
 
-        public async Task<string?> GetUserMainPhotoUrlByUserId(Guid userId)
+        public async Task<string?> GetUserMainPhotoUrlByUserId(Guid userId, CancellationToken ct)
         {
-            return await _userRepository.GetUserMainPhotoUrlByUserId(userId);
+            return await _userRepository.GetUserMainPhotoUrlByUserId(userId, ct);
         }
 
-        public async Task SoftDeleteAccount(Guid id)
+        public async Task SoftDeleteAccount(Guid id, CancellationToken ct)
         {
-            try
+            await _kafkaProducer.ProduceAsync(KafkaTopic.RecalledSessionsTopic, new Message<string, string>
             {
-                await _kafkaProducer.ProduceAsync(KafkaTopic.RecalledSessionsTopic, new Message<string, string>
-                {
-                    Key = Guid.NewGuid().ToString(),
-                    Value = id.ToString()
-                });
-            }
-            catch
-            {
-                throw;
-            }
+                Key = Guid.NewGuid().ToString(),
+                Value = id.ToString()
+            });
 
-            await _userRepository.SoftDeleteUserAsync(id);
+            await _userRepository.SoftDeleteUserAsync(id, ct);
         }
 
-        public async Task RestoreDeletedAccount(Guid id)
+        public async Task RestoreDeletedAccount(Guid id, CancellationToken ct)
         {
-            await _userRepository.RestoreUserAsync(id);
+            await _userRepository.RestoreUserAsync(id, ct);
         }
 
-        public async Task PermanantlyDeleteAccount(Guid id)
+        public async Task PermanantlyDeleteAccount(Guid id, CancellationToken ct)
         {
             await _unitOfWork.BeginAsync();
             try
             {
-                await _userRepository.PermanantlyDeleteUserAsync(id);
-                await _userOAuthAccountRepository.DeleteAllOAuthAccountsByUserIdAsync(id);
+                await _userRepository.PermanantlyDeleteUserAsync(id, ct);
+                await _userOAuthAccountRepository.DeleteAllOAuthAccountsByUserIdAsync(id, ct);
                 await _unitOfWork.CommitAsync();
             }
             catch
@@ -470,9 +428,9 @@ namespace UserService.Application.Services
             }
         }
 
-        public async Task<object?> GetUserProfileInfo(Guid userId, UserRole role)
+        public async Task<object?> GetUserProfileInfo(Guid userId, UserRole role, CancellationToken ct)
         {
-            var user = await _userRepository.GetUserById(userId);
+            var user = await _userRepository.GetUserById(userId, ct);
 
             if (user == null)
             {
@@ -481,7 +439,7 @@ namespace UserService.Application.Services
 
             if (role == UserRole.Person)
             {
-                var profile = await _userRepository.GetPersonUserInfoByIdAsync(userId);
+                var profile = await _userRepository.GetPersonUserInfoByIdAsync(userId, ct);
 
                 if (profile == null)
                 {
@@ -508,7 +466,7 @@ namespace UserService.Application.Services
             }
             else if (role == UserRole.Company)
             {
-                var profile = await _userRepository.GetCompanyUserInfoByIdAsync(userId);
+                var profile = await _userRepository.GetCompanyUserInfoByIdAsync(userId, ct);
 
                 if (profile == null)
                 {
@@ -541,45 +499,45 @@ namespace UserService.Application.Services
             }
         }
 
-        public async Task<Guid?> GetUserIdByEmailAsync(string email)
+        public async Task<Guid?> GetUserIdByEmailAsync(string email, CancellationToken ct)
         {
-            var result = await _userRepository.GetUserIdByEmailAsync(email);
+            var result = await _userRepository.GetUserIdByEmailAsync(email, ct);
 
             return result;
         }
 
-        public async Task ChangePasswordAsync(Guid userId, string password)
+        public async Task ChangePasswordAsync(Guid userId, string password, CancellationToken ct)
         {
             var hashedPassword = _passwordHasher.Generate(password);
 
-            await _userRepository.PatchUserInfoAsync(userId, passwordHash: hashedPassword);
+            await _userRepository.PatchUserInfoAsync(userId, ct, passwordHash: hashedPassword);
         }
 
-        public async Task ChangeEmailAsync(Guid userId, string email)
+        public async Task ChangeEmailAsync(Guid userId, string email, CancellationToken ct)
         {
-            await _userRepository.PatchUserInfoAsync(userId, email: email);
+            await _userRepository.PatchUserInfoAsync(userId, ct, email: email);
         }
 
-        public async Task ChangePhoneNumberAsync(Guid userId, string phoneNumber)
+        public async Task ChangePhoneNumberAsync(Guid userId, string phoneNumber, CancellationToken ct)
         {
-            await _userRepository.PatchUserInfoAsync(userId, phoneNumber: phoneNumber);
+            await _userRepository.PatchUserInfoAsync(userId, ct, phoneNumber: phoneNumber);
         }
 
-        public async Task<User?> GetUserById(Guid id)
+        public async Task<User?> GetUserById(Guid id, CancellationToken ct)
         {
-            var user = await _userRepository.GetUserById(id);
+            var user = await _userRepository.GetUserById(id, ct);
 
             return user;
         }
 
-        public async Task<VerifiedUserDto?> GetVerifiedUserDtoById(Guid id)
+        public async Task<VerifiedUserDto?> GetVerifiedUserDtoById(Guid id, CancellationToken ct)
         {
-            var user = await _userRepository.GetUserById(id);
+            var user = await _userRepository.GetUserById(id, ct);
             var isDeleted = false;
 
             if (user == null )
             {
-                throw new NotValidCredentialsException();
+                throw new KeyNotFoundException();
             }
 
             if (user.IsSoftDeleted == true && user.DeletedAt > DateTime.UtcNow.AddMonths(-6) && user.IsPermanantlyDeleted != true)
@@ -599,24 +557,23 @@ namespace UserService.Application.Services
 
         }
 
-        public async Task ChangeUserPasswordWithOldPasswordVerification(Guid userId, string oldPassord, string newPassword)
+        public async Task ChangeUserPasswordWithOldPasswordVerification(Guid userId, string oldPassord, string newPassword, CancellationToken ct)
         {
-            var oldPasswordHash = await _userRepository.GetPasswordHashByUserId(userId);
+            var oldPasswordHash = await _userRepository.GetPasswordHashByUserId(userId, ct);
             if (oldPasswordHash == null) throw new Exception();
 
-            if (!_passwordHasher.Verify(oldPassord, oldPasswordHash)) throw new Exception("Provided previous password is incorrect");
+            if (!_passwordHasher.Verify(oldPassord, oldPasswordHash)) throw new DomainValidationException("Provided previous password is incorrect");
 
             var hashedPassword = _passwordHasher.Generate(newPassword);
 
-            await _userRepository.PatchUserInfoAsync(userId, passwordHash: hashedPassword);
+            await _userRepository.PatchUserInfoAsync(userId, ct, passwordHash: hashedPassword);
         }
 
-        public async Task RequestToggleTwoFactorAuthenticationCode(Guid userId)
+        public async Task RequestToggleTwoFactorAuthenticationCode(Guid userId, CancellationToken ct)
         {
-            var user = await _userRepository.GetUserById(userId);
+            var user = await _userRepository.GetUserById(userId, ct);
             if (string.IsNullOrEmpty(user?.Email))
-                throw new Exception("User not found"); ;
-
+                throw new KeyNotFoundException("User not found");
 
             var verificationCode = Guid.NewGuid().ToString().Substring(0, 11).Replace("-", "").ToUpper();
 
@@ -635,30 +592,30 @@ namespace UserService.Application.Services
             await _emailService.SendEmail(user.Email, "Two step authentication confirmation code", verificationCode);
         }
 
-        public async Task ToggleTwoFactorAuthentication(Guid userId, string verificationCode)
+        public async Task ToggleTwoFactorAuthentication(Guid userId, string verificationCode, CancellationToken ct)
         {
             var redisValue = await _redisService.GetAsync($"{RedisKey.ToggleTwoStepAuthCaode}:{userId}");
 
             if (string.IsNullOrEmpty(redisValue))
-                throw new Exception("Verification code expired or not found");
+                throw new NotFoundException("Verification code expired or not found");
 
             var redisData = JsonConvert.DeserializeObject<dynamic>(redisValue); ;
 
             string storedCode = redisData!.Code;
 
             if (!string.Equals(storedCode, verificationCode, StringComparison.OrdinalIgnoreCase))
-                throw new Exception("Invalid verification code");
+                throw new ArgumentException("Invalid verification code");
 
-            await _userRepository.ToggleTwoFactorAuthentication(userId);
+            await _userRepository.ToggleTwoFactorAuthentication(userId, ct);
         }
 
-        public async Task StartPasswordResetViaEmail(string email)
+        public async Task StartPasswordResetViaEmail(string email, CancellationToken ct)
         {
 
-            var userId = await _userRepository.GetUserIdByEmailAsync(email);
+            var userId = await _userRepository.GetUserIdByEmailAsync(email, ct);
 
             if (userId is null)
-                throw new Exception("User with such email doesn't exist");
+                throw new NotFoundException("User with such email doesn't exist");
 
             var verificationCode = Guid.NewGuid().ToString().Substring(0, 11).Replace("-", "").ToUpper();
 
@@ -678,12 +635,12 @@ namespace UserService.Application.Services
             await _emailService.SendEmail(email, "Password Reset Code", verificationCode);
         }
 
-        public async Task<string> GetPasswordResetTokenViaEmail(GetPasswordResetTokenDto dto)
+        public async Task<string> GetPasswordResetTokenViaEmail(GetPasswordResetTokenDto dto, CancellationToken ct)
         {
             var redisValue = await _redisService.GetAsync($"{RedisKey.PasswordReset}:{dto.Email}");
 
             if (string.IsNullOrEmpty(redisValue))
-                throw new  Exception("Verification code expired or not found");
+                throw new  NotFoundException("Verification code expired or not found");
 
             var redisData = JsonConvert.DeserializeObject<dynamic>(redisValue);
 
@@ -691,9 +648,9 @@ namespace UserService.Application.Services
             Guid userId = redisData.UserId;
 
             if (!string.Equals(storedCode, dto.VerificationCode, StringComparison.OrdinalIgnoreCase))
-                throw new Exception("Invalid verification code");
+                throw new ArgumentException("Invalid verification code");
 
-            var resetPasswordToken = await _authService.getResetPasswordToken(userId);
+            var resetPasswordToken = await _authService.GetResetPasswordTokenAsync(userId, ct);
 
             if (string.IsNullOrEmpty(resetPasswordToken))
                 throw new Exception("Failed to generate reset password token");
@@ -704,11 +661,11 @@ namespace UserService.Application.Services
             return resetPasswordToken;
         }
 
-        public async Task startEmailChangeViaEmailViaEmail(Guid userId)
+        public async Task StartEmailChangeViaEmailViaEmail(Guid userId, CancellationToken ct)
         {
-            var user = await _userRepository.GetUserById(userId);
+            var user = await _userRepository.GetUserById(userId, ct);
             if (string.IsNullOrEmpty(user?.Email))
-                throw new Exception("User not found"); ;
+                throw new KeyNotFoundException("User not found"); ;
 
             var emailResetCode = Guid.NewGuid().ToString().Substring(0, 11).Replace("-", "").ToUpper();
 
@@ -723,21 +680,21 @@ namespace UserService.Application.Services
             await _emailService.SendEmail(user.Email, "Email Reset Code", emailResetCode);
         }
 
-        public async Task<string> getResetEmailToken(Guid userId, string verificationCode) 
+        public async Task<string> GetResetEmailToken(Guid userId, string verificationCode, CancellationToken ct) 
         {
             var redisValue = await _redisService.GetAsync($"{RedisKey.CurrentEmailConfirmationCode}:{userId}");
 
             if (string.IsNullOrEmpty(redisValue))
-                throw new Exception("Verification code expired or not found");
+                throw new NotFoundException("Verification code expired or not found");
 
             var redisData = JsonConvert.DeserializeObject<dynamic>(redisValue); ;
 
             string storedCode = redisData!.Code;
 
             if (!string.Equals(storedCode, verificationCode, StringComparison.OrdinalIgnoreCase))
-                throw new Exception("Invalid verification code");
+                throw new ArgumentException("Invalid verification code");
 
-            var resetEmailToken = await _authService.getRequestNewEmailCofirmationToken(userId);
+            var resetEmailToken = await _authService.GetRequestNewEmailCofirmationTokenAsync(userId, ct);
 
             if (string.IsNullOrEmpty(resetEmailToken))
                 throw new Exception("Failed to generate request new email confirmation token");
@@ -747,11 +704,11 @@ namespace UserService.Application.Services
             return resetEmailToken;
         }
 
-        public async Task sendCofirmationCodeToNewEmail(Guid userId, string email)
+        public async Task SendCofirmationCodeToNewEmail(Guid userId, string email, CancellationToken ct)
         {
-            var isEmailTaken = await _userRepository.GetUserIdByEmailAsync(email);
+            var isEmailTaken = await _userRepository.GetUserIdByEmailAsync(email, ct);
 
-            if (isEmailTaken != null) throw new Exception("this email is taken");
+            if (isEmailTaken != null) throw new DomainValidationException("this email is taken");
 
             var newEmailCOfirmationCode = Guid.NewGuid().ToString().Substring(0, 11).Replace("-", "").ToUpper();
 
@@ -767,12 +724,12 @@ namespace UserService.Application.Services
 
         }
 
-        public async Task<string> confirmNewEmail(Guid userId, string verificationCode)
+        public async Task<string> ConfirmNewEmail(Guid userId, string verificationCode, CancellationToken ct)
         {
             var redisValue = await _redisService.GetAsync($"{RedisKey.NewEmailCofirmationCode}:{userId}");
 
             if (string.IsNullOrEmpty(redisValue))
-                throw new Exception("Verification code expired or not found");
+                throw new NotFoundException("Verification code expired or not found");
 
             var redisData = JsonConvert.DeserializeObject<dynamic>(redisValue);
 
@@ -780,9 +737,9 @@ namespace UserService.Application.Services
             string storedEmail = redisData!.Email;
 
             if (!string.Equals(storedCode, verificationCode, StringComparison.OrdinalIgnoreCase))
-                throw new Exception("Invalid verification code");
+                throw new ArgumentException("Invalid verification code");
 
-            var resetEmailToken = await _authService.getEmailResetToken(userId, storedEmail);
+            var resetEmailToken = await _authService.GetEmailResetTokenAsync(userId, storedEmail, ct);
 
             if (string.IsNullOrEmpty(resetEmailToken))
                 throw new Exception("Failed to generate reset password token");
@@ -792,26 +749,29 @@ namespace UserService.Application.Services
             return resetEmailToken;
         }
 
+
+
         /// <summary>
         /// ///////////////////
         /// </summary>
 
-        private async Task FindExistingOrResentlyDeletedUser(string email, string phoneNumber)
+
+
+        private async Task FindExistingOrResentlyDeletedUser(string email, string phoneNumber, CancellationToken ct)
         {
-            var existingUser = await _userRepository.FindUserByEmailOrPhoneAsync(email, phoneNumber);
+            var existingUser = await _userRepository.FindUserByEmailOrPhoneAsync(ct, email, phoneNumber);
 
             if (existingUser != null)
             {
                 if (existingUser.DeletedAt.HasValue && existingUser.DeletedAt.Value > DateTime.UtcNow.AddMonths(-6) && existingUser.IsPermanantlyDeleted != true)
                 {
-                    throw new ArgumentException(_localizer["RecentlyDeletedUser"]);
+                    throw new DomainValidationException(_localizer["RecentlyDeletedUser"]);
                 }
                 else if(existingUser.IsPermanantlyDeleted != true)
                 {
-                    throw new ArgumentException(_localizer["UserAlreadyExists"]);
+                    throw new DomainValidationException(_localizer["UserAlreadyExists"]);
                 }
             }
-
         }
 
         private async Task<string?> UploadPhotoAsync(IFormFile? photo, string folder)
@@ -841,7 +801,7 @@ namespace UserService.Application.Services
         {
             if (string.IsNullOrEmpty(url))
             {
-                throw new Exception("URL cannot be null or empty.");
+                throw new ArgumentException("URL cannot be null or empty.");
             }
 
             try
@@ -857,29 +817,29 @@ namespace UserService.Application.Services
         private async Task ValidateAdrress(string? country = null, string? region = null, string? settlement = null)
         {
             if (country != null && country != "__DELETE__" && country != "none" && (region == null || region != "__DELETE__") && (settlement == null && settlement != "__DELETE__") && !RegionMaps.IsCountryAllowed(country))
-                throw new Exception("Not valid country");
+                throw new DomainValidationException("Not valid country");
 
-            if (country != null && country != "__DELETE__" && country != "none" && region != null && region != "__DELETE__" && region != "none" && (settlement == null && settlement != "__DELETE__") && !RegionMaps.IsRegionAllowed(country, region))
-                throw new Exception("Not valid region");
+            if (country != null && country != "__DELETE__" && country != "none" && region != null && region != "__DELETE__" && region != "none" && !RegionMaps.IsRegionAllowed(country, region))
+                throw new DomainValidationException("Not valid region");
 
             if (country != null && country != "__DELETE__" && country != "none" && region != null && region != "__DELETE__" && region != "none" && settlement != null && settlement != "__DELETE__")
             {
                 var res = await _geoServiceClient.ValidateSettlement(country, region, settlement);
 
                 if (res == false)
-                    throw new Exception("Not valid settlement");
+                    throw new DomainValidationException("Not valid settlement");
             }
         }
 
-        private async Task ValidateEmailAndPhoneNumberUniquenessAsync(string email, string phoneNumber)
+        private async Task ValidateEmailAndPhoneNumberUniquenessAsync(string email, string phoneNumber, CancellationToken ct)
         {
             var errors = new ValidationErrors();
 
             var existingUserByEmail =
-                await _userRepository.GetUserByEmail(email);
+                await _userRepository.GetUserByEmail(email, ct);
 
             var existingUserByPhone =
-                await _userRepository.GetUserByPhoneNumber(phoneNumber);
+                await _userRepository.GetUserByPhoneNumber(phoneNumber, ct);
 
             if (existingUserByEmail != null)
             {

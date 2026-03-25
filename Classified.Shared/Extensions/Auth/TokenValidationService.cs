@@ -1,5 +1,4 @@
 ﻿using Classified.Shared.Constants;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -10,7 +9,6 @@ namespace Classified.Shared.Extensions.Auth
     public interface ITokenValidationService
     {
         ClaimsPrincipal ValidateAndGetPrincipal(string token, JwtTokenType expectedType);
-        //ClaimsPrincipal? ValidateTokenByType(JwtTokenType tokenType, IRequestCookieCollection cookies);
     }
 
     public class TokenValidationService : ITokenValidationService

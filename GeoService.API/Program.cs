@@ -52,7 +52,7 @@ builder.Services.AddHttpClient<ITranslateServiceClient, TranslateServiceClient>(
 builder.Services.AddHttpClient<ITranslateServiceClient, TranslateServiceClient>();
 
 //Cors
-builder.Services.AddDefaultCors();
+builder.Services.AddDefaultCors(builder.Configuration);
 
 //Server JWT
 builder.Services.AddServerJwtAuthentication(builder.Configuration);

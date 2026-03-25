@@ -1,6 +1,7 @@
 ﻿using Classified.Shared.Constants;
 using Classified.Shared.DTOs;
-using UserService.Application.Exeptions;
+using Classified.Shared.Extensions.ErrorHandler;
+using Classified.Shared.Extensions.ErrorHandler.Errors;
 using UserService.Domain.Abstactions;
 using UserService.Domain.Models;
 
@@ -17,13 +18,13 @@ namespace UserService.Application.Services
             _userRepository = userRepository;
         }
 
-        public async Task<UserOAuthAccountDto?> GetUserOAuthAccountByProviderAndProviderUserId(OAuthProvider provider, string providerUserId)
+        public async Task<UserOAuthAccountDto?> GetUserOAuthAccountByProviderAndProviderUserId(OAuthProvider provider, string providerUserId, CancellationToken ct)
         {
-            var userOAuthAccount = await _oAuthRepository.GetUserOAuthAccountByProviderAndProviderUserId(provider, providerUserId);
+            var userOAuthAccount = await _oAuthRepository.GetUserOAuthAccountByProviderAndProviderUserId(provider, providerUserId, ct);
 
             if (userOAuthAccount == null)
             {
-                throw new NotValidCredentialsException();
+                throw new ArgumentException("Provided credentials are not valid.");
             }
 
             return new UserOAuthAccountDto
@@ -34,9 +35,9 @@ namespace UserService.Application.Services
             };
         }
 
-        public async Task<ICollection<UserOAuthAccountDto>> GetUsersOAuthAccountsByUserId(Guid userId)
+        public async Task<ICollection<UserOAuthAccountDto>> GetUsersOAuthAccountsByUserId(Guid userId, CancellationToken ct)
         {
-            var accounts = await _oAuthRepository.GetUsersOAuthAccountsByUserId(userId);
+            var accounts = await _oAuthRepository.GetUsersOAuthAccountsByUserId(userId, ct);
 
             var dtos = accounts.Select(account => new UserOAuthAccountDto
             {
@@ -48,7 +49,7 @@ namespace UserService.Application.Services
             return dtos;
         }
 
-        public async Task ConnectOauthAccountToExistingUser(OAuthProvider provider, string providerId, Guid userId)
+        public async Task ConnectOauthAccountToExistingUser(OAuthProvider provider, string providerId, Guid userId, CancellationToken ct)
         {
             if (userId == Guid.Empty)
                 throw new ArgumentException(nameof(userId));
@@ -56,9 +57,8 @@ namespace UserService.Application.Services
             if (string.IsNullOrWhiteSpace(providerId))
                 throw new ArgumentException(nameof(providerId));
 
-            if (await _oAuthRepository.ChechIfUserHasOauthAccountWithSameProvider(provider, userId))
-                throw new OAuthAccountAlreadyLinkedException();
-
+            if (await _oAuthRepository.ChechIfUserHasOauthAccountWithSameProvider(provider, userId, ct))
+                throw new DomainValidationException("User alredy has OAuth account connected with this provider.");
 
             var (oAuthAccount, oAuthAccountError) = UserOAuthAccount.CreateNew(
                 userId,
@@ -69,27 +69,27 @@ namespace UserService.Application.Services
             if (oAuthAccount == null)
                 throw new Exception(oAuthAccountError);
 
-            await _oAuthRepository.AddUserOAuthAccountAsync(oAuthAccount);
+            await _oAuthRepository.AddUserOAuthAccountAsync(oAuthAccount, ct);
         }
 
-        public async Task UnLinkOAuthAccountAsync(OAuthProvider provider, Guid userId)
+        public async Task UnLinkOAuthAccountAsync(OAuthProvider provider, Guid userId, CancellationToken ct)
         {
-            var user = await _userRepository.GetUserById(userId)
-                ?? throw new UserNotFoundException();
+            var user = await _userRepository.GetUserById(userId, ct)
+                ?? throw new DomainValidationException("User doesn`t exust.");
 
-            var accounts = await _oAuthRepository.GetUsersOAuthAccountsByUserId(userId);
+            var accounts = await _oAuthRepository.GetUsersOAuthAccountsByUserId(userId, ct);
 
             var accountToDelete = accounts
                 .FirstOrDefault(a => a.OAuthProviderName == provider)
-                ?? throw new OAuthAccountNotFoundException();
+                ?? throw new DomainValidationException("OAuth account has not been found");
 
             var hasPassword = !string.IsNullOrEmpty(user.PasswordHash);
             var hasOtherAuthMethods = hasPassword || accounts.Count > 1;
 
             if (!hasOtherAuthMethods)
-                throw new CannotUnlinkLastAuthMethodException();
+                throw new DomainValidationException("User have only one auth method.");
 
-            await _oAuthRepository.DeleteOAuthAccountByUserIdAsync(provider, userId);
+            await _oAuthRepository.DeleteOAuthAccountByUserIdAsync(provider, userId, ct);
         }
 
 

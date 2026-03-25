@@ -19,6 +19,7 @@ using UserService.Infrastructure.AuthService;
 using UserService.Infrastructure.GeoService;
 using UserService.Infrastructure.Kafka;
 using UserService.Persistance.PostgreSQL;
+using UserService.Persistance.PostgreSQL.Services;
 
 
 
@@ -85,6 +86,7 @@ builder.Services.AddDbContext<UserServicePostgreDbContext>(
     options =>
     {
         options.UseNpgsql(configuration.GetConnectionString(nameof(UserServicePostgreDbContext)));
+            //.UseSnakeCaseNamingConvention();
     }
 );
 builder.Services.AddSufyS3Storage();
@@ -92,6 +94,7 @@ builder.Services.AddSufyS3Storage();
 //
 builder.Services.AddApplicationServices();
 builder.Services.AddApplicationRepositories();
+builder.Services.AddHostedService<AppBackgroundService>();
 //
 builder.Services.AddValidatorsFromAssembly(typeof(AssemblyMarker).Assembly);
 builder.Services.AddFluentValidationAutoValidation();
@@ -109,7 +112,7 @@ builder.Services.AddScoped<IRedisService, RedisService>();
 
 
 //Cors
-builder.Services.AddDefaultCors();
+builder.Services.AddDefaultCors(builder.Configuration);
 
 var app = builder.Build();
 
@@ -121,7 +124,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // Добавляем мидлвар для глобальной обработки ошибок
-//app.UseMiddleware<GlobalExceptionMiddleware>();
+app.UseMiddleware<GlobalExceptionMiddleware>();
 
 app.UseRouting();
 

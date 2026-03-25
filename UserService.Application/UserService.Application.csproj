@@ -20,18 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Update="Validators\CreateUserBaseValidator.Designer.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>CreateUserBaseValidator.resx</DependentUpon>
-    </Compile>
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Update="Validators\CreateUserBaseValidator.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>CreateUserBaseValidator.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
+    <Folder Include="Exeptions\" />
   </ItemGroup>
 
 </Project>

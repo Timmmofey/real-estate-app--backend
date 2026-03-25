@@ -2,7 +2,7 @@
 using Classified.Shared.Constants;
 using Classified.Shared.Extensions.ServerJwtAuth;
 using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
+using UserService.Application.DTOs;
 
 namespace AuthService.API.Controllers
 {
@@ -20,40 +20,28 @@ namespace AuthService.API.Controllers
 
         [AuthorizeServerJwt(InternalServices.UserService)]
         [HttpPost("get-password-reset-token")]
-        public IActionResult getResetPasswordResetToken([FromBody] JsonElement body)
+        public IActionResult getResetPasswordResetToken(UserIdRequestDto dto)
         {
-            var userId = body.GetProperty("userId").GetString();
+            var resetPasswordJwt = _jwtProvider.GenerateResetPasswordResetToken(Guid.Parse(dto.userId));
 
-            if (userId == null) throw new ArgumentNullException("userId");
-
-            var resetPasswordJwt = _jwtProvider.GenerateResetPasswordResetToken(Guid.Parse(userId));
             return Ok(resetPasswordJwt);
         }
 
         [AuthorizeServerJwt(InternalServices.UserService)]
         [HttpPost("get-email-reset-token")]
-        public IActionResult getResetEmailResetToken([FromBody] JsonElement body)
+        public IActionResult getResetEmailResetToken([FromBody] GetResetEmailResetTokenRequestDto dto)
         {
-            var userId = body.GetProperty("userId").GetString();
-            var newEmail = body.GetProperty("newEmail").GetString();
+            var resetEmailJwt = _jwtProvider.GenerateResetEmailResetToken(Guid.Parse(dto.userId), dto.newEmail);
 
-            if (userId == null) throw new ArgumentNullException("userId");
-            if (newEmail == null) throw new ArgumentNullException("newEmail");
-
-
-            var resetEmailJwt = _jwtProvider.GenerateResetEmailResetToken(Guid.Parse(userId), newEmail);
             return Ok(resetEmailJwt);
         }
 
         [AuthorizeServerJwt(InternalServices.UserService)]
         [HttpPost("get-request-new-email-cofirmation-token")]
-        public IActionResult getRequestNewEmailCofirmationToken([FromBody] JsonElement body)
+        public IActionResult getRequestNewEmailCofirmationToken(UserIdRequestDto dto)
         {
-            var userId = body.GetProperty("userId").GetString();
+            var resetPasswordJwt = _jwtProvider.GenerateRequestNewEmailCofirmationToken(Guid.Parse(dto.userId));
 
-            if (userId == null) throw new ArgumentNullException("userId");
-
-            var resetPasswordJwt = _jwtProvider.GenerateRequestNewEmailCofirmationToken(Guid.Parse(userId));
             return Ok(resetPasswordJwt);
         }
     }

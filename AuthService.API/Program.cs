@@ -5,6 +5,7 @@ using AuthService.Infrastructure.Jwt;
 using AuthService.Infrastructure.Kafka;
 using AuthService.Infrastructure.UserService;
 using AuthService.Persistance;
+using AuthService.Persistance.PostgreSQL.Services;
 using AuthService.Persistance.Repositories;
 using Classified.Shared.Extensions;
 using Classified.Shared.Extensions.Auth;
@@ -14,8 +15,6 @@ using Classified.Shared.Infrastructure.MicroserviceJwt;
 using Classified.Shared.Infrastructure.RedisService;
 using FluentValidation;
 using FluentValidation.AspNetCore;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using UAParser;
@@ -31,8 +30,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+//Kafka
 builder.Services.AddHostedService<KafkaConsumer>();
-
 
 //UserServiceClient
 builder.Services.AddHttpClient<IUserServiceClient, UserServiceClient>(client =>
@@ -41,13 +40,18 @@ builder.Services.AddHttpClient<IUserServiceClient, UserServiceClient>(client =>
 });
 
 builder.Services.AddHttpContextAccessor();
+
 //PostgreDb
 builder.Services.AddDbContext<AuthServicePostgreDbContext>(
     options =>
     {
         options.UseNpgsql(configuration.GetConnectionString(nameof(AuthServicePostgreDbContext)));
+            //.UseSnakeCaseNamingConvention();
     }
 );
+
+//Backgraound service
+builder.Services.AddHostedService<AppBackgroundService>();
 
 // HttpContextAccessor нужны для User-Agent и IP
 builder.Services.AddHttpContextAccessor();
@@ -92,7 +96,7 @@ builder.Services.AddServerJwtAuthentication(builder.Configuration);
 builder.Services.AddSingleton<IMicroserviceJwtProvider, MicroserviceJwtProvider>();
 
 //Cors
-builder.Services.AddDefaultCors();
+builder.Services.AddDefaultCors(builder.Configuration);
 
 builder.Services.AddAuthentication()
     .AddCookie("GoogleCookieScheme", options =>

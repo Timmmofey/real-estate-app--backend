@@ -1,6 +1,7 @@
 ﻿using Classified.Shared.Constants;
-using Classified.Shared.Extensions;
+using Classified.Shared.Extensions.ErrorHandler.Errors;
 using Classified.Shared.Infrastructure.MicroserviceJwt;
+using Classified.Shared.Libs;
 using System.Net.Http.Json;
 
 namespace UserService.Infrastructure.AuthService
@@ -16,26 +17,29 @@ namespace UserService.Infrastructure.AuthService
             _microserviceJwtProvider = microserviceJwtProvider;
         }
 
-        public async Task<string?> getResetPasswordToken(Guid userId)
+        private readonly string _serviceName = InternalServices.AuthService;
+
+
+        public async Task<string?> GetResetPasswordTokenAsync(Guid userId, CancellationToken ct)
         {
-            _http.SetServerJwt(_microserviceJwtProvider, InternalServices.UserService, InternalServices.AuthService);
+            _http.SetServerJwt(_microserviceJwtProvider, _serviceName);
 
             var request = new
             {
-                UserId = userId
+                UserId = userId,
             };
 
-            var response = await _http.PostAsJsonAsync("internal-api/auth/get-password-reset-token", request);
+            var response = await _http.PostAsJsonAsync($"internal-api/auth/get-password-reset-token", request, ct);
 
             if (!response.IsSuccessStatusCode)
-                return null;
+                throw new Exception("eror occured while getting pwd reset token");
 
             return await response.Content.ReadAsStringAsync();
         }
 
-        public async Task<string?> getEmailResetToken(Guid userId, string newEmail)
+        public async Task<string?> GetEmailResetTokenAsync(Guid userId, string newEmail, CancellationToken ct)
         {
-            _http.SetServerJwt(_microserviceJwtProvider, InternalServices.UserService, InternalServices.AuthService);
+            _http.SetServerJwt(_microserviceJwtProvider, _serviceName);
 
             var request = new
             {
@@ -43,27 +47,27 @@ namespace UserService.Infrastructure.AuthService
                 NewEmail = newEmail
             };
 
-            var response = await _http.PostAsJsonAsync($"internal-api/auth/get-email-reset-token", request);
+            var response = await _http.PostAsJsonAsync($"internal-api/auth/get-email-reset-token", request, ct);
 
             if (!response.IsSuccessStatusCode)
-                return null;
+                throw new Exception("eror occured while getting email reset token");
 
             return await response.Content.ReadAsStringAsync();
         }
 
-        public async Task<string?> getRequestNewEmailCofirmationToken(Guid userId)
+        public async Task<string?> GetRequestNewEmailCofirmationTokenAsync(Guid userId, CancellationToken ct)
         {
-            _http.SetServerJwt(_microserviceJwtProvider, InternalServices.UserService, InternalServices.AuthService);
+            _http.SetServerJwt(_microserviceJwtProvider, _serviceName);
 
             var request = new
             {
                 UserId = userId
             };
 
-            var response = await _http.PostAsJsonAsync($"internal-api/auth/get-request-new-email-cofirmation-token", request);
+            var response = await _http.PostAsJsonAsync($"internal-api/auth/get-request-new-email-cofirmation-token", request, ct);
 
             if (!response.IsSuccessStatusCode)
-                return null;
+                throw new Exception("eror occured while getting new email confirmation token");
 
             return await response.Content.ReadAsStringAsync();
         }

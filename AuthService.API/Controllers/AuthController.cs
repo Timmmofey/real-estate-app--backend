@@ -35,14 +35,14 @@ namespace AuthService.API.Controllers
 
         [AllowAnonymous]
         [HttpPost("login")]
-        public async Task<IActionResult> Login(LoginRequestDto dto)
+        public async Task<IActionResult> Login(LoginRequestDto dto, CancellationToken ct)
         {
             try
             {
                 var deviceId = GetOrCreateDeviceId();
 
 
-                var (tokens, restoreToken, twoFactorAuthToken) = await _authService.LoginAsync(dto.PhoneOrEmail, dto.Password, deviceId);
+                var (tokens, restoreToken, twoFactorAuthToken) = await _authService.LoginAsync(dto.PhoneOrEmail, dto.Password, deviceId, ct);
 
                 // Restore
                 if (!string.IsNullOrEmpty(restoreToken))
@@ -88,7 +88,7 @@ namespace AuthService.API.Controllers
 
         [Authorize(Policy = nameof(JwtTokenType.TwoFactorAuthentication))]
         [HttpPost("login-via-two-factor-auth")]
-        public async Task<IActionResult> LoginViaTwoFactorAuth([FromBody]string code)
+        public async Task<IActionResult> LoginViaTwoFactorAuth([FromBody]string code, CancellationToken ct)
         {
             if (!Request.Cookies.TryGetValue(CookieNames.TwoFactorAuthentication, out var twoFactorAuthenticationToken) || string.IsNullOrEmpty(code))
                 return Unauthorized("2FA token is missing or invalid.");
@@ -106,7 +106,7 @@ namespace AuthService.API.Controllers
 
             try
             {
-                var tokens = await _authService.LoginViaTWoFactorAuthentication(UserIdClaim, deviceIdClaim, code);
+                var tokens = await _authService.LoginViaTWoFactorAuthentication(UserIdClaim, deviceIdClaim, code, ct);
 
                 CookieHepler.SetCookie(Response, CookieNames.Auth, tokens!.AccessToken, minutes: 10);
                 CookieHepler.SetCookie(Response, CookieNames.Refresh, tokens.RefreshToken, days: 150);
@@ -135,7 +135,7 @@ namespace AuthService.API.Controllers
 
         [AllowAnonymous]
         [HttpGet("google-callback")]
-        public async Task<IActionResult> GoogleCallback()
+        public async Task<IActionResult> GoogleCallback(CancellationToken ct)
         {
             // 1. Получаем результат внешней аутентификации
             var authResult = await HttpContext.AuthenticateAsync("GoogleAuthScheme");
@@ -155,7 +155,7 @@ namespace AuthService.API.Controllers
             var frontendBaseUrl = _config["Frontend:BaseUrl"] ?? "http://localhost:3000";
             var provider = OAuthProvider.Google;
 
-            var existingOAuthAccount = await _authService.GetUserOAuthAccountByProviderAndProviderUserIdAsync(provider, providerUserId);
+            var existingOAuthAccount = await _authService.GetUserOAuthAccountByProviderAndProviderUserIdAsync(provider, providerUserId, ct);
 
 
             // Если пользовтель авторизован осуществляем привязку аккаунта к OAuth
@@ -175,7 +175,7 @@ namespace AuthService.API.Controllers
                 }
 
                 // Привязываем аккаунт к текущему пользователю
-                await _authService.LinkOAuthAccountAsync(provider, providerUserId, currentUserId);
+                await _authService.LinkOAuthAccountAsync(provider, providerUserId, currentUserId, ct);
 
                 // Редиректим на страницу успеха
                 return Redirect($"{frontendBaseUrl}/settings?tab=security&toast=toastGoogleAccountConnectedSuccessfully&toast-type=success");
@@ -194,7 +194,7 @@ namespace AuthService.API.Controllers
                 // Возвращаем (tokens, restoreToken, twoFactorToken) по аналогии с LoginAsync
                 //(TokenResponseDto? tokens, string? restoreToken, string? twoFactorAuthToken) = await _authService.LoginWithOAuthAsync(userId, deviceId);
 
-                var (tokens, restoreToken, twoFactorAuthenticatinToken) = await _authService.LoginWithOAuthAsync(userId, deviceId);
+                var (tokens, restoreToken, twoFactorAuthenticatinToken) = await _authService.LoginWithOAuthAsync(userId, deviceId, ct);
 
 
                 if (restoreToken != null)
@@ -219,7 +219,7 @@ namespace AuthService.API.Controllers
             // 4. Нет привязки по provider+id — проверяем, есть ли пользователь с таким email
             if (!string.IsNullOrEmpty(email))
             {
-                var existingUserId = await _authService.GetUserIdByEmailAsync(email);
+                var existingUserId = await _authService.GetUserIdByEmailAsync(email, ct);
                 if (!string.IsNullOrWhiteSpace(existingUserId))
                 {
                     // email занят — просим пользователя войти и привязать внешний провайдер вручную
@@ -243,7 +243,7 @@ namespace AuthService.API.Controllers
         //[ValidateToken(JwtTokenType.Refresh)]
         [Authorize(Policy = "DeviceAndRefreshOnly")]
         [HttpPost("refresh")]
-        public async Task<IActionResult> Refresh()
+        public async Task<IActionResult> Refresh(CancellationToken ct)
         {
             var currentIp = HttpContext.Connection.RemoteIpAddress?.ToString();
 
@@ -274,7 +274,7 @@ namespace AuthService.API.Controllers
             if(ipClaim == null)
                 return Unauthorized("Refresh token claim is invalid.");    
 
-            var tokens = await _authService.RefreshAndRorateAsync(refreshToken, deviceId, ipClaim);
+            var tokens = await _authService.RefreshAndRorateAsync(refreshToken, deviceId, ipClaim, ct);
 
             CookieHepler.SetCookie(Response, CookieNames.Auth, tokens.AccessToken, minutes: 10);
             CookieHepler.SetCookie(Response, CookieNames.Refresh, tokens.RefreshToken, days: 150);
@@ -285,21 +285,20 @@ namespace AuthService.API.Controllers
 
         [AccessAuthorize]
         [HttpPost("logout")]
-        public async Task<IActionResult> Logout()
+        public async Task<IActionResult> Logout(CancellationToken ct)
         {
             Guid deviceId = TryGetDeviceIdFromCookie();
 
-            await _authService.LogoutAync(deviceId);
+            await _authService.LogoutAync(deviceId, ct);
 
             CookieHepler.RemoveRefreshAuthDeviceTokens(Response);
 
             return NoContent();
         }
 
-
         [AccessAuthorize]
         [HttpPost("logout-all")]
-        public async Task<IActionResult> LogoutAll()
+        public async Task<IActionResult> LogoutAll(CancellationToken ct)
         {
             var userId = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
 
@@ -310,13 +309,13 @@ namespace AuthService.API.Controllers
 
             CookieHepler.RemoveRefreshAuthDeviceTokens(Response);
 
-            await _authService.LogoutAllAsync(Guid.Parse(userId));
+            await _authService.LogoutAllAsync(Guid.Parse(userId), ct);
             return NoContent();
         }
 
         [AccessAuthorize]
         [HttpPost("terminate-session")]
-        public async Task<IActionResult> TerminateSessionAsync(Guid sessionId)
+        public async Task<IActionResult> TerminateSessionAsync(Guid sessionId, CancellationToken ct)
         {
             if (sessionId == Guid.Empty)
                 return BadRequest("Session id is required.");
@@ -325,7 +324,7 @@ namespace AuthService.API.Controllers
             if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
                 return Unauthorized();
 
-            var success = await _authService.TerminateSession(userId, sessionId);
+            var success = await _authService.TerminateSession(userId, sessionId, ct);
 
             if (!success)
                 return NotFound("Session not found or already terminated.");
@@ -335,20 +334,18 @@ namespace AuthService.API.Controllers
 
         [AccessAuthorize]
         [HttpGet("get-current-user-sessions")]
-        public async Task<ActionResult<ICollection<SessionDto>>> GetUsersSessionAsync()
+        public async Task<ActionResult<ICollection<SessionDto>>> GetUsersSessionAsync(CancellationToken ct)
         {
             var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
             var sessionIdClaim = User.Claims.FirstOrDefault(r => r.Type == "sessionId")?.Value;
-            if (!Guid.TryParse(userIdClaim, out var userId))
-            {
-                return Unauthorized();
-            }
-            if (!Guid.TryParse(sessionIdClaim, out var sessionId))
-            {
-                return Unauthorized();
-            }
 
-            var sessions = await _authService.GetUsersSessions(userId, sessionId);
+            if (!Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized();
+
+            if (!Guid.TryParse(sessionIdClaim, out var sessionId))
+                return Unauthorized();
+
+            var sessions = await _authService.GetUsersSessions(userId, sessionId, ct);
 
             if (sessions == null || !sessions.Any())
             {
@@ -403,11 +400,11 @@ namespace AuthService.API.Controllers
                 var token = handler.ReadJwtToken(deviceToken);
                 var deviceTokenClaim = token.Claims.FirstOrDefault(c => c.Type == "deviceId")?.Value;
 
-
                 if (!Guid.TryParse(deviceTokenClaim, out deviceId))
                 {
                     deviceId = Guid.NewGuid();
                 }
+
                 var deviceJwt = _jwtProvider.GenerateDeviceToken(deviceId);
 
                 CookieHepler.SetCookie(Response, CookieNames.Device, deviceJwt, days: 150);

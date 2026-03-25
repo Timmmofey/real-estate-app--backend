@@ -37,17 +37,19 @@ namespace AuthService.Application.Services
             _ipGeoService = ipGeoService;
         }
 
-        public async Task<(TokenResponseDto?, string?, string?)> LoginAsync(string phoneOrEmail, string password, Guid deviceId)
+        public async Task<(TokenResponseDto?, string?, string?)> LoginAsync(string phoneOrEmail, string password, Guid deviceId, CancellationToken ct)
         {
             VerifiedUserDto? user;
-            try
-            {
-                 user = await _userServiceClient.VerifyUserCredentialsAsync(phoneOrEmail, password);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"{ex}");
-            }
+            //try
+            //{
+            //     user = await _userServiceClient.VerifyUserCredentialsAsync(phoneOrEmail, password);
+            //}
+            //catch (Exception ex)
+            //{
+            //    throw new Exception($"{ex}");
+            //}
+            user = await _userServiceClient.VerifyUserCredentialsAsync(phoneOrEmail, password, ct);
+
 
             if (user == null)
                 throw new InvalidСredentialsException();
@@ -59,9 +61,7 @@ namespace AuthService.Application.Services
             }
 
             if (user.IsBlocked == true)
-            {
                 throw new BlockedUserAccountException();
-            }
 
             if (user.IsTwoFactorEnabled == true)
             {
@@ -76,25 +76,33 @@ namespace AuthService.Application.Services
                     UserRole = user.Role
                 };
 
-                try
-                {
-                    await _redisService.SetAsync(
+                //try
+                //{
+                //    await _redisService.SetAsync(
+                //        key: $"{RedisKey.TwoFactorAuth}:{user.Id}",
+                //        value: System.Text.Json.JsonSerializer.Serialize(redisData),
+                //        expiration: TimeSpan.FromMinutes(5)
+                //    );
+
+                //    await _emailService.SendEmail(user.Email, "Two factor auth code", code);
+                //}
+                //catch (Exception ex)
+                //{
+                //    throw new Exception($"{ex}");
+                //}
+
+                await _redisService.SetAsync(
                         key: $"{RedisKey.TwoFactorAuth}:{user.Id}",
                         value: System.Text.Json.JsonSerializer.Serialize(redisData),
                         expiration: TimeSpan.FromMinutes(5)
                     );
 
-                    await _emailService.SendEmail(user.Email, "Two factor auth code", code);
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception($"{ex}");
-                }
+                await _emailService.SendEmail(user.Email, "Two factor auth code", code);
 
                 return (null, null, twoFactorAuthenticatinToken);
             }
 
-            var tokens = await GenerateTokensAfterLogin(user.Id, user.Role, deviceId);
+            var tokens = await GenerateTokensAfterLogin(user.Id, user.Role, deviceId, ct);
 
             return (tokens, null, null);
         }
@@ -103,10 +111,10 @@ namespace AuthService.Application.Services
             TokenResponseDto? tokens,
             string? restoreToken,
             string? twoFactorAuthToken
-        )> LoginWithOAuthAsync(Guid userId, Guid deviceId)
+        )> LoginWithOAuthAsync(Guid userId, Guid deviceId, CancellationToken ct)
         {
             // 1. Получаем пользователя
-            var user = await _userServiceClient.GetVerifiedUserDtoByIdAsync(userId.ToString());
+            var user = await _userServiceClient.GetVerifiedUserDtoByIdAsync(userId.ToString(), ct);
 
             if (user == null)
                 throw new InvalidСredentialsException();
@@ -142,52 +150,63 @@ namespace AuthService.Application.Services
                     UserRole = user.Role
                 };
 
-                try
-                {
-                    await _redisService.SetAsync(
+                //try
+                //{
+                //    await _redisService.SetAsync(
+                //        key: $"{RedisKey.TwoFactorAuth}:{user.Id}",
+                //        value: System.Text.Json.JsonSerializer.Serialize(redisData),
+                //        expiration: TimeSpan.FromMinutes(5)
+                //    );
+
+                //    await _emailService.SendEmail(
+                //        user.Email,
+                //        "Two factor authentication code",
+                //        code
+                //    );
+                //}
+                //catch (Exception ex)
+                //{
+                //    throw new Exception($"Two-factor auth error: {ex.Message}");
+                //}
+                await _redisService.SetAsync(
                         key: $"{RedisKey.TwoFactorAuth}:{user.Id}",
                         value: System.Text.Json.JsonSerializer.Serialize(redisData),
                         expiration: TimeSpan.FromMinutes(5)
                     );
 
-                    await _emailService.SendEmail(
-                        user.Email,
-                        "Two factor authentication code",
-                        code
-                    );
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception($"Two-factor auth error: {ex.Message}");
-                }
+                await _emailService.SendEmail(
+                    user.Email,
+                    "Two factor authentication code",
+                    code
+                );
 
                 return (null, null, twoFactorAuthenticationToken);
             }
 
             // 5. Обычный успешный логин
-            var tokens = await GenerateTokensAfterLogin(user.Id, user.Role, deviceId);
+            var tokens = await GenerateTokensAfterLogin(user.Id, user.Role, deviceId, ct);
 
             return (tokens, null, null);
         }
 
-        public async Task<string?> GetUserIdByEmailAsync(string email)
+        public async Task<string?> GetUserIdByEmailAsync(string email, CancellationToken ct)
         {
-            return await _userServiceClient.GetUserIdByEmailAsync(email);
+            return await _userServiceClient.GetUserIdByEmailAsync(email, ct);
         }
 
-        public async Task<UserOAuthAccountDto?> GetUserOAuthAccountByProviderAndProviderUserIdAsync(OAuthProvider provider, string providerUserId)
+        public async Task<UserOAuthAccountDto?> GetUserOAuthAccountByProviderAndProviderUserIdAsync(OAuthProvider provider, string providerUserId, CancellationToken ct)
         {
-            var existingOAuthAccount = await _userServiceClient.GetUserOAuthAccountByProviderAndProviderUserIdAsync(provider, providerUserId);
+            var existingOAuthAccount = await _userServiceClient.GetUserOAuthAccountByProviderAndProviderUserIdAsync(provider, providerUserId, ct);
 
             return existingOAuthAccount;
         }
 
-        public async Task LinkOAuthAccountAsync(OAuthProvider provider, string providerId, Guid userId) 
+        public async Task LinkOAuthAccountAsync(OAuthProvider provider, string providerId, Guid userId, CancellationToken ct) 
         {
-            await _userServiceClient.ConnectOauthAccountToExistingUserAsync(provider, providerId, userId);
+            await _userServiceClient.ConnectOauthAccountToExistingUserAsync(provider, providerId, userId, ct);
         }
 
-        public async Task<TokenResponseDto?> LoginViaTWoFactorAuthentication(string userId, string deviceId, string code)
+        public async Task<TokenResponseDto?> LoginViaTWoFactorAuthentication(string userId, string deviceId, string code, CancellationToken ct)
         {
             var redisValue = await _redisService.GetAsync($"{RedisKey.TwoFactorAuth}:{userId}");
 
@@ -203,12 +222,12 @@ namespace AuthService.Application.Services
             if (!string.Equals(storedCode, code, StringComparison.OrdinalIgnoreCase))
                 throw new Exception("Invalid verification code");
 
-            var tokens = await GenerateTokensAfterLogin(Guid.Parse(userId), parsedRole, Guid.Parse(deviceId));
+            var tokens = await GenerateTokensAfterLogin(Guid.Parse(userId), parsedRole, Guid.Parse(deviceId), ct);
 
             return tokens;
         }
 
-        public async Task<TokenResponseDto> RefreshAndRorateAsync(Guid refreshToken, Guid deviceId, string prevIp)
+        public async Task<TokenResponseDto> RefreshAndRorateAsync(Guid refreshToken, Guid deviceId, string prevIp, CancellationToken ct)
         {
             var currentIp = _http.HttpContext?.Connection.RemoteIpAddress?.ToString();
             if (currentIp == null)
@@ -227,7 +246,7 @@ namespace AuthService.Application.Services
 
             var newRefreshTokenGuid = Guid.NewGuid();
 
-            var refreshTokenObj = await _refreshTokenRepository.UpdateAndRotateRefreshTokenAsync(refreshToken, deviceId, newRefreshTokenGuid, deviceName, deviceType, ipAddress, country, city);
+            var refreshTokenObj = await _refreshTokenRepository.UpdateAndRotateRefreshTokenAsync(refreshToken, deviceId, newRefreshTokenGuid, ct, deviceName, deviceType, ipAddress, country, city);
 
             if (refreshTokenObj == null)
                 throw new Exception($"Refresh token creation failed");
@@ -313,24 +332,24 @@ namespace AuthService.Application.Services
         //    };
         //}
 
-        public async Task LogoutAync(Guid deviceId) 
+        public async Task LogoutAync(Guid deviceId, CancellationToken ct) 
         {
-            await _refreshTokenRepository.DeleteRefreshTokenByUserIdAndDeviceIDAsync(deviceId);
+            await _refreshTokenRepository.DeleteRefreshTokenByUserIdAndDeviceIDAsync(deviceId, ct);
         } 
 
-        public async Task LogoutAllAsync(Guid userId)
+        public async Task LogoutAllAsync(Guid userId, CancellationToken ct)
         {
-            await _refreshTokenRepository.DeleteAllRefreskTokensByUserId(userId);
+            await _refreshTokenRepository.DeleteAllRefreskTokensByUserId(userId, ct);
         }
 
-        public async Task<bool> TerminateSession(Guid userId, Guid id)
+        public async Task<bool> TerminateSession(Guid userId, Guid id, CancellationToken ct)
         {
-            return await _refreshTokenRepository.DeleteRefreshTokenByUserIdAndIdAsync(userId, id);
+            return await _refreshTokenRepository.DeleteRefreshTokenByUserIdAndIdAsync(userId, id, ct);
         }
 
-        public async Task<ICollection<SessionDto>> GetUsersSessions(Guid userId, Guid sessionId)
+        public async Task<ICollection<SessionDto>> GetUsersSessions(Guid userId, Guid sessionId, CancellationToken ct)
         {
-            var refreshTokens = await _refreshTokenRepository.GetUsersSessionsAsync(userId);
+            var refreshTokens = await _refreshTokenRepository.GetUsersSessionsAsync(userId, ct);
             var usersSessions = new List<SessionDto>();
 
             foreach (var refreshToken in refreshTokens)
@@ -428,7 +447,7 @@ namespace AuthService.Application.Services
             return (deviceName, deviceType, ipAddress, countryName, cityName);
         }
 
-        private async Task<TokenResponseDto> GenerateTokensAfterLogin(Guid userId, UserRole role, Guid deviceId)
+        private async Task<TokenResponseDto> GenerateTokensAfterLogin(Guid userId, UserRole role, Guid deviceId, CancellationToken ct)
         {
             var currentIp = _http.HttpContext?.Connection.RemoteIpAddress?.ToString();
             if (currentIp == null)
@@ -461,7 +480,7 @@ namespace AuthService.Application.Services
             if (refreshTokenObj == null)
                 throw new Exception($"Refresh token creation failed: {error}");
 
-            await _refreshTokenRepository.AddOrUpdateRefreshTokenAsync(refreshTokenObj);
+            await _refreshTokenRepository.AddOrUpdateRefreshTokenAsync(refreshTokenObj, ct);
 
             return (new TokenResponseDto
             {

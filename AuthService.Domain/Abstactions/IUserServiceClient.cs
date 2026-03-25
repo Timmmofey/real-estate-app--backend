@@ -5,10 +5,10 @@ namespace AuthService.Domain.Abstactions
 {
     public interface IUserServiceClient
     {
-        Task<VerifiedUserDto?> VerifyUserCredentialsAsync(string phoneOrEmail, string password);
-        Task<VerifiedUserDto?> GetVerifiedUserDtoByIdAsync(string userId);
-        Task<UserOAuthAccountDto?> GetUserOAuthAccountByProviderAndProviderUserIdAsync(OAuthProvider provider, string providerUserId);
-        Task<string?> GetUserIdByEmailAsync(string email);
-        Task ConnectOauthAccountToExistingUserAsync(OAuthProvider provider, string providerId, Guid userId);
+        Task<VerifiedUserDto?> VerifyUserCredentialsAsync(string phoneOrEmail, string password, CancellationToken ct);
+        Task<VerifiedUserDto?> GetVerifiedUserDtoByIdAsync(string userId, CancellationToken ct);
+        Task<UserOAuthAccountDto?> GetUserOAuthAccountByProviderAndProviderUserIdAsync(OAuthProvider provider, string providerUserId, CancellationToken ct);
+        Task<string?> GetUserIdByEmailAsync(string email, CancellationToken ct);
+        Task ConnectOauthAccountToExistingUserAsync(OAuthProvider provider, string providerId, Guid userId, CancellationToken ct);
     }
 }

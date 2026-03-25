@@ -2,8 +2,8 @@
 {
     public interface IAuthServiceClient
     {
-        Task<string?> getResetPasswordToken(Guid userId);
-        Task<string?> getEmailResetToken(Guid userId, string newEmail);
-        Task<string?> getRequestNewEmailCofirmationToken(Guid userId);
+        Task<string?> GetResetPasswordTokenAsync(Guid userId, CancellationToken ct);
+        Task<string?> GetEmailResetTokenAsync(Guid userId, string newEmail, CancellationToken ct);
+        Task<string?> GetRequestNewEmailCofirmationTokenAsync(Guid userId, CancellationToken ct);
     }
 }

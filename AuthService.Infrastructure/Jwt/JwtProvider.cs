@@ -13,7 +13,7 @@ namespace AuthService.Infrastructure.Jwt
         private readonly IConfiguration _config;
         public JwtProvider(IConfiguration config) => _config = config;
 
-        public string GenerateAccessToken(Guid userId, UserRole role,Guid sessionId)
+        public string GenerateAccessToken(Guid userId, UserRole role, Guid sessionId)
         {
             var claims = new[]
             {
@@ -22,17 +22,8 @@ namespace AuthService.Infrastructure.Jwt
                 new Claim("sessionId", sessionId.ToString()),
                 new Claim("type", JwtTokenType.Access.ToString())
             };
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(15),
-                signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return GenerateToken(claims, DateTime.UtcNow.AddMinutes(15));
         }
 
         public string GenerateRefreshToken(Guid refreshtoken, string ip)
@@ -43,37 +34,19 @@ namespace AuthService.Infrastructure.Jwt
                 new Claim("type", JwtTokenType.Refresh.ToString()),
                 new Claim("ip", ip)
             };
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddDays(150),
-                signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return GenerateToken(claims, DateTime.UtcNow.AddDays(150));
         }
 
-        public string GenerateRestoreToken(Guid Id)
+        public string GenerateRestoreToken(Guid userId)
         {
             var claims = new[]
             {
-                new Claim("Id", Id.ToString()),
+                new Claim("userId", userId.ToString()),
                 new Claim("type", JwtTokenType.Restore.ToString())
             };
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddDays(150),
-                signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return GenerateToken(claims, DateTime.UtcNow.AddMinutes(15));
         }
 
         public string GenerateDeviceToken(Guid deviceId)
@@ -83,17 +56,8 @@ namespace AuthService.Infrastructure.Jwt
                 new Claim("deviceId", deviceId.ToString()),
                 new Claim("type", JwtTokenType.Device.ToString())
             };
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-            var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddDays(150),
-                signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return GenerateToken(claims, DateTime.UtcNow.AddDays(150));
         }
 
         public string GenerateResetPasswordResetToken(Guid userId)
@@ -104,17 +68,7 @@ namespace AuthService.Infrastructure.Jwt
                 new Claim("type", JwtTokenType.PasswordReset.ToString())
             };
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(15),
-                signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return GenerateToken(claims, DateTime.UtcNow.AddMinutes(15));
         }
 
         public string GenerateResetEmailResetToken(Guid userId, string newEmail)
@@ -123,20 +77,10 @@ namespace AuthService.Infrastructure.Jwt
             {
                 new Claim("userId", userId.ToString()),
                 new Claim("type", JwtTokenType.EmailReset.ToString()),
-                new Claim("email", newEmail)
+                new Claim(ClaimTypes.Email, newEmail)
             };
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(15),
-                signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return GenerateToken(claims, DateTime.UtcNow.AddMinutes(15));
         }
 
         public string GenerateRequestNewEmailCofirmationToken(Guid userId)
@@ -147,20 +91,10 @@ namespace AuthService.Infrastructure.Jwt
                 new Claim("type", JwtTokenType.RequestNewEmailCofirmation.ToString())
             };
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(15),
-                signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return GenerateToken(claims, DateTime.UtcNow.AddMinutes(15));
         }
 
-        public string GenerateTwoFactorAuthToken(Guid userId) 
+        public string GenerateTwoFactorAuthToken(Guid userId)
         {
             var claims = new[]
             {
@@ -168,17 +102,7 @@ namespace AuthService.Infrastructure.Jwt
                 new Claim("type", JwtTokenType.TwoFactorAuthentication.ToString())
             };
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(15),
-                signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            return GenerateToken(claims, DateTime.UtcNow.AddMinutes(15));
         }
 
         public string GenerateOAuthRegistrationToken(
@@ -189,7 +113,7 @@ namespace AuthService.Infrastructure.Jwt
         {
             var claims = new[]
             {
-                new Claim ("email", email),
+                new Claim (ClaimTypes.Email, email),
                 new Claim ("provider", provider),
                 new Claim ("providerUserId", providerUserId),
                 new Claim ("type", JwtTokenType.OAuthRegistration.ToString())
@@ -198,18 +122,34 @@ namespace AuthService.Infrastructure.Jwt
             //if (!string.IsNullOrEmpty(picture))
             //    claims.Add(new Claim("picture", picture));
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+            return GenerateToken(claims, DateTime.UtcNow.AddMinutes(10));
+        }
+
+
+
+        /// <summary>
+        /// Private Methods
+        /// </summary>
+
+
+
+        private string GenerateToken(IEnumerable<Claim> claims, DateTime expires)
+        {
+            var key = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(_config["Jwt:Key"]!)
+            );
+
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
                 issuer: _config["Jwt:Issuer"],
                 audience: _config["Jwt:Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(10),
-                signingCredentials: creds);
+                expires: expires,
+                signingCredentials: creds
+            );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
-
     }
 }

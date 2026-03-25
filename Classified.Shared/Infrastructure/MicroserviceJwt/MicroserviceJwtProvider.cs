@@ -15,8 +15,10 @@ namespace Classified.Shared.Infrastructure.MicroserviceJwt
             _config = config;
         }
 
-        public string GenerateToken(string audience, string? subject = null, int expiresMinutes = 1)
+        public string GenerateToken(string audience, string subject = "none", int expiresMinutes = 1)
         {
+            subject = subject ?? "none";
+
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, subject)

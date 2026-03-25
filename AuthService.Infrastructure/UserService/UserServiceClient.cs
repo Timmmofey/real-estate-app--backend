@@ -1,8 +1,8 @@
 ﻿using AuthService.Domain.Abstactions;
 using Classified.Shared.Constants;
 using Classified.Shared.DTOs;
-using Classified.Shared.Extensions;
 using Classified.Shared.Infrastructure.MicroserviceJwt;
+using Classified.Shared.Libs;
 using Microsoft.AspNetCore.WebUtilities;
 using System.Net.Http.Json;
 
@@ -21,7 +21,7 @@ namespace AuthService.Infrastructure.UserService
 
         private readonly string _serviceName = InternalServices.UserService;
 
-        public async Task<VerifiedUserDto?> VerifyUserCredentialsAsync(string phoneOrEmail, string password)
+        public async Task<VerifiedUserDto?> VerifyUserCredentialsAsync(string phoneOrEmail, string password, CancellationToken ct)
         {
             _http.SetServerJwt(_microserviceJwtProvider, _serviceName, "verify-user-credentials");
 
@@ -31,7 +31,7 @@ namespace AuthService.Infrastructure.UserService
                 Password = password
             };
 
-            var response = await _http.PostAsJsonAsync($"internal-api/users/verify-user-credentials", request);
+            var response = await _http.PostAsJsonAsync($"internal-api/users/verify-user-credentials", request, ct);
 
             if (!response.IsSuccessStatusCode) 
                 throw new UnauthorizedAccessException($"error:{response.RequestMessage}");
@@ -39,7 +39,7 @@ namespace AuthService.Infrastructure.UserService
             return await response.Content.ReadFromJsonAsync<VerifiedUserDto>();
         }
 
-        public async Task<VerifiedUserDto?> GetVerifiedUserDtoByIdAsync(string userId)
+        public async Task<VerifiedUserDto?> GetVerifiedUserDtoByIdAsync(string userId, CancellationToken ct)
         {
             _http.SetServerJwt(_microserviceJwtProvider, _serviceName);
 
@@ -50,14 +50,14 @@ namespace AuthService.Infrastructure.UserService
 
             var url = QueryHelpers.AddQueryString("internal-api/users/get-verified-user-dto-by-id", queryParams);
 
-            var response = await _http.GetAsync(url);
+            var response = await _http.GetAsync(url, ct);
             if (!response.IsSuccessStatusCode) return null;
 
             return await response.Content.ReadFromJsonAsync<VerifiedUserDto>();
         }
 
 
-        public async Task<UserOAuthAccountDto?> GetUserOAuthAccountByProviderAndProviderUserIdAsync(OAuthProvider provider,string providerUserId)
+        public async Task<UserOAuthAccountDto?> GetUserOAuthAccountByProviderAndProviderUserIdAsync(OAuthProvider provider,string providerUserId, CancellationToken ct)
         {
             _http.SetServerJwt(_microserviceJwtProvider, _serviceName);
 
@@ -71,7 +71,7 @@ namespace AuthService.Infrastructure.UserService
                 "internal-api/users/get-user-o-auth-account-by-provider-and-provider-user-id-async",
                 queryParams);
 
-            var response = await _http.GetAsync(url);
+            var response = await _http.GetAsync(url, ct);
             if (!response.IsSuccessStatusCode)
                 return null;
 
@@ -80,7 +80,7 @@ namespace AuthService.Infrastructure.UserService
         }
 
         
-        public async Task<string?> GetUserIdByEmailAsync(string email)
+        public async Task<string?> GetUserIdByEmailAsync(string email, CancellationToken ct)
         {
             _http.SetServerJwt(_microserviceJwtProvider, _serviceName);
 
@@ -91,14 +91,14 @@ namespace AuthService.Infrastructure.UserService
 
             var url = QueryHelpers.AddQueryString("internal-api/users/get-user-id-by-email-async", queryParams);
 
-            var response = await _http.GetAsync(url);
+            var response = await _http.GetAsync(url, ct);
             if (!response.IsSuccessStatusCode)
                 return null;
 
             return await response.Content.ReadAsStringAsync();
         }
 
-        public async Task ConnectOauthAccountToExistingUserAsync(OAuthProvider provider, string providerId, Guid userId)
+        public async Task ConnectOauthAccountToExistingUserAsync(OAuthProvider provider, string providerId, Guid userId, CancellationToken ct)
         {
             _http.SetServerJwt(_microserviceJwtProvider, _serviceName);
 
@@ -109,7 +109,7 @@ namespace AuthService.Infrastructure.UserService
                 UserId = userId
             };
 
-            var response = await _http.PostAsJsonAsync("internal-api/users/connect-oauth-account-to-existing-user", request);
+            var response = await _http.PostAsJsonAsync("internal-api/users/connect-oauth-account-to-existing-user", request, ct);
 
             if (!response.IsSuccessStatusCode)
             {

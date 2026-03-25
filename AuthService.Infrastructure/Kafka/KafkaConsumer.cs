@@ -4,7 +4,7 @@ using Confluent.Kafka;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace AuthService.Infrastructure.Kafka
+namespace AuthService.Infrastructure.Kafka  
 {
     public class KafkaConsumer : BackgroundService
     {
@@ -45,7 +45,7 @@ namespace AuthService.Infrastructure.Kafka
 
                 if (Guid.TryParse(userId, out var guid))
                 {
-                    await dbContext.DeleteAllRefreskTokensByUserId(guid);
+                    await dbContext.DeleteAllRefreskTokensByUserId(guid, stoppingToken);
                 }
             }
 

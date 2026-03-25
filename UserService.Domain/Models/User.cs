@@ -92,9 +92,9 @@ namespace UserService.Domain.Models
             DateTime? createdAt,
             DateTime? deletedAt)
         {
-            var validationError = ValidateUserInputs(id, email, phoneNumber);
-            if (validationError != null)
-                return (null, validationError);
+            //var validationError = ValidateUserInputs(id, email, phoneNumber);
+            //if (validationError != null)
+            //    return (null, validationError);
 
             var user = new User(id, email, phoneNumber, role, passwordHash, isTwoFactorEnabled, isVerified, isBlocked, isSoftDeleted, isPermanantlyDeleted, createdAt, deletedAt);
             return (user, null);

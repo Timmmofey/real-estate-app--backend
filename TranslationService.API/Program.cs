@@ -23,7 +23,7 @@ builder.Services.AddScoped<IGoogleTranslationService, GoogleTranslationService>(
 builder.Services.AddHttpClient<IGoogleTranslateClient, GoogleTranslateClient>();
 
 //Cors
-builder.Services.AddDefaultCors();
+builder.Services.AddDefaultCors(builder.Configuration);
 
 //Server JWT
 builder.Services.AddServerJwtAuthentication(builder.Configuration);

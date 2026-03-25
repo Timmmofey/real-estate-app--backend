@@ -15,6 +15,13 @@ namespace UserService.Persistance.PostgreSQL.Configurations
 
             builder.Property(u => u.OAuthProviderName)
                   .HasConversion<string>();
+
+            builder
+                .HasIndex(x => new { x.UserId, x.OAuthProviderName })
+                .IsUnique();
+
+            builder.HasIndex(x => new { x.OAuthProviderName, x.ProviderUserId })
+                .IsUnique();
         }
 
     }
