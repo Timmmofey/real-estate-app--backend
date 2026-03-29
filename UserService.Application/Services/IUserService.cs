@@ -7,14 +7,14 @@ namespace UserService.Application.Abstactions
 {
     public interface IUserService
     {
-        Task<Guid> CreatePersonUserAsync(CreatePersonUserDto dto, CancellationToken ct);
-        Task<Guid> CreateCompanyUserAsync(CreateCompanyUserDto dto, CancellationToken ct);
+        Task<Guid> CreatePersonUserAsync(CreatePersonUserRequestDto dto, CancellationToken ct);
+        Task<Guid> CreateCompanyUserAsync(CreateCompanyUserRequestDto dto, CancellationToken ct);
         Task<Guid> CreatePersonUserFromOAuthAsync(CreatePersonUserOAuthDto dto, CancellationToken ct);
-        Task<Guid> CreateCompanyUserFromOAuthAsync(CreateCompanyUserOAuthDto dto, CancellationToken ct);
+        Task<Guid> CreateCompanyUserFromOAuthAsync(CreateCompanyUserOAuthRequestDto dto, CancellationToken ct);
         Task<VerifiedUserDto> VerifyUsersCredentials(string emailOrPhone, string password, CancellationToken ct);
 
         Task PatchPersonProfileAsync(Guid userId, EditPersonUserRequest updatedProfile, CancellationToken ct);
-        Task PatchCompanyProfileAsync(Guid userId, EditCompanyUserRequest updatedProfile, CancellationToken ct);
+        Task PatchCompanyProfileAsync(Guid userId, EditCompanyUserRequestDto updatedProfile, CancellationToken ct);
         Task<string?> GetUserMainPhotoUrlByUserId(Guid userId, CancellationToken ct);
 
         Task SoftDeleteAccount(Guid id, CancellationToken ct);
@@ -31,7 +31,7 @@ namespace UserService.Application.Abstactions
         Task RequestToggleTwoFactorAuthenticationCode(Guid userId, CancellationToken ct);
         Task ToggleTwoFactorAuthentication(Guid userId, string verificationCode, CancellationToken ct);
         Task StartPasswordResetViaEmail(string email, CancellationToken ct);
-        Task<string> GetPasswordResetTokenViaEmail(GetPasswordResetTokenDto dto, CancellationToken ct);
+        Task<string> GetPasswordResetTokenViaEmail(GetPasswordResetTokenRequestDto dto, CancellationToken ct);
         Task StartEmailChangeViaEmailViaEmail(Guid userId, CancellationToken ct);
         Task<string> GetResetEmailToken(Guid userId, string verificationCode, CancellationToken ct);
         Task SendCofirmationCodeToNewEmail(Guid userId, string email, CancellationToken ct);

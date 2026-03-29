@@ -52,7 +52,7 @@ namespace UserService.API.Controllers
 
         [AuthorizeServerJwt(InternalServices.AuthService)]
         [HttpPost("connect-oauth-account-to-existing-user")]
-        public async Task<IActionResult> ConnectOauthAccountToExistingUser([FromBody] ConnectOAuthAccountRequest request, CancellationToken ct)
+        public async Task<IActionResult> ConnectOauthAccountToExistingUser([FromBody] ConnectOAuthAccountRequestDto request, CancellationToken ct)
         {
             await _userOAuthAccountService.ConnectOauthAccountToExistingUser(request.Provider, request.ProviderId, request.UserId, ct);
 

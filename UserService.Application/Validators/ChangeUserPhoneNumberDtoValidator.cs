@@ -3,7 +3,7 @@ using UserService.Application.DTOs;
 
 namespace UserService.Application.Validators
 {
-    public class ChangeUserPhoneNumberDtoValidator: AbstractValidator<ChangeUserPhoneNumberDto>
+    public class ChangeUserPhoneNumberDtoValidator: AbstractValidator<ChangeUserPhoneNumberRequestDto>
     {
         public ChangeUserPhoneNumberDtoValidator() 
         {

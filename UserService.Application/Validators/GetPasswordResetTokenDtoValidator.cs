@@ -3,7 +3,7 @@ using UserService.Application.DTOs;
 
 namespace UserService.Application.Validators
 {
-    public class GetPasswordResetTokenDtoValidator: AbstractValidator<GetPasswordResetTokenDto>
+    public class GetPasswordResetTokenDtoValidator: AbstractValidator<GetPasswordResetTokenRequestDto>
     {
         public GetPasswordResetTokenDtoValidator() {
             RuleFor(x => x.Email)

@@ -35,7 +35,7 @@ namespace UserService.API.Controllers
 
         [HttpPost("add-person-user")]
         [Consumes("multipart/form-data")]
-        public async Task<IActionResult> CreatePersonUser([FromForm] CreatePersonUserDto dto, CancellationToken ct)
+        public async Task<IActionResult> CreatePersonUser([FromForm] CreatePersonUserRequestDto dto, CancellationToken ct)
         {
             var userId = await _userService.CreatePersonUserAsync(dto, ct);
 
@@ -44,7 +44,7 @@ namespace UserService.API.Controllers
 
         [HttpPost("add-company-user")]
         [Consumes("multipart/form-data")]
-        public async Task<IActionResult> CreateCompanyUser([FromForm] CreateCompanyUserDto dto, CancellationToken ct)
+        public async Task<IActionResult> CreateCompanyUser([FromForm] CreateCompanyUserRequestDto dto, CancellationToken ct)
         {
             var userId = await _userService.CreateCompanyUserAsync(dto, ct);
 
@@ -53,7 +53,7 @@ namespace UserService.API.Controllers
 
         [Authorize(Policy = nameof(JwtTokenType.OAuthRegistration))]
         [HttpPost("complete-oauth-registration")]
-        public async Task<IActionResult> CompleteOAuthRegistration([FromForm] CompleteOAuthRegistrationDto dto, CancellationToken ct)
+        public async Task<IActionResult> CompleteOAuthRegistration([FromForm] CompleteOAuthRegistrationRequestDto dto, CancellationToken ct)
         {
             if (!Request.Cookies.TryGetValue(CookieNames.OAuthRegistration, out var token))
                 return Unauthorized();
@@ -97,7 +97,7 @@ namespace UserService.API.Controllers
             }
             else
             {
-                var companyDto = new CreateCompanyUserOAuthDto
+                var companyDto = new CreateCompanyUserOAuthRequestDto
                 {
                     Email = email,
                     PhoneNumber = dto.PhoneNumber,
@@ -134,7 +134,7 @@ namespace UserService.API.Controllers
 
         [AccessAuthorize(Roles = "Company")]
         [HttpPatch("edit-company-profile-main-info")]
-        public async Task<IActionResult> PatchCompanyProfile([FromForm] EditCompanyUserRequest updatedProfile, CancellationToken ct)
+        public async Task<IActionResult> PatchCompanyProfile([FromForm] EditCompanyUserRequestDto updatedProfile, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
 
@@ -238,7 +238,7 @@ namespace UserService.API.Controllers
         }
 
         [HttpPost("get-password-reset-token-via-email")]
-        public async Task<IActionResult> GetPasswordResetTokenViaEmail([FromBody] GetPasswordResetTokenDto dto, CancellationToken ct)
+        public async Task<IActionResult> GetPasswordResetTokenViaEmail([FromBody] GetPasswordResetTokenRequestDto dto, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.VerificationCode))
                 return BadRequest("Email and verification code are required");
@@ -289,11 +289,11 @@ namespace UserService.API.Controllers
         }
 
         [HttpPost("confirm-current-email")]
-        public async Task<IActionResult> ConfirmCurrentEmail([FromBody] EmailResetVerificationCodeDto dto, CancellationToken ct)
+        public async Task<IActionResult> ConfirmCurrentEmail([FromBody] VerificationCodeDto dto, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
 
-            var resetEmailToken = await _userService.GetResetEmailToken(userId, dto.verificationCode, ct);
+            var resetEmailToken = await _userService.GetResetEmailToken(userId, dto.Code, ct);
 
             CookieHepler.SetCookie(Response, CookieNames.RequestNewEmailCofirmation, resetEmailToken, minutes: 5);
 
@@ -302,11 +302,11 @@ namespace UserService.API.Controllers
 
         [Authorize(Policy = nameof(JwtTokenType.RequestNewEmailCofirmation))]
         [HttpPost("send-new-email-cofirmation-code")]
-        public async Task<IActionResult> SendCofirmationCodeToNewEmail([FromBody] EmailDto dto, CancellationToken ct)
+        public async Task<IActionResult> SendCofirmationCodeToNewEmail([FromBody] EmailRequestDto dto, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request, CookieNames.RequestNewEmailCofirmation);
 
-            await _userService.SendCofirmationCodeToNewEmail(userId, dto.email, ct);
+            await _userService.SendCofirmationCodeToNewEmail(userId, dto.Email, ct);
             CookieHepler.DeleteCookie(Response, CookieNames.RequestNewEmailCofirmation);
 
             return Ok("Reset code sent");
@@ -314,11 +314,11 @@ namespace UserService.API.Controllers
 
         [AccessAuthorize]
         [HttpPost("confirm-new-email")]
-        public async Task<IActionResult> ConfirmNewEmail([FromBody] EmailResetVerificationCodeDto dto, CancellationToken ct)
+        public async Task<IActionResult> ConfirmNewEmail([FromBody] VerificationCodeDto dto, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
 
-            var resetEmailToken = await _userService.ConfirmNewEmail(userId, dto.verificationCode, ct);
+            var resetEmailToken = await _userService.ConfirmNewEmail(userId, dto.Code, ct);
 
             CookieHepler.SetCookie(Response, CookieNames.EmailReset, resetEmailToken, minutes: 5);
 
@@ -345,7 +345,7 @@ namespace UserService.API.Controllers
 
         [AccessAuthorize]
         [HttpPost("change-user-phone-number")]
-        public async Task<IActionResult> ChangeUserPhoneNumber([FromForm] ChangeUserPhoneNumberDto phoneNumber, CancellationToken ct)
+        public async Task<IActionResult> ChangeUserPhoneNumber([FromForm] ChangeUserPhoneNumberRequestDto phoneNumber, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
 
@@ -356,7 +356,7 @@ namespace UserService.API.Controllers
 
         [AccessAuthorize]
         [HttpPost("change-user-password")]
-        public async Task<IActionResult> ChangeUserPassword([FromForm] ChangeUserPassordDto dto, CancellationToken ct)
+        public async Task<IActionResult> ChangeUserPassword([FromForm] ChangeUserPassordRequestDto dto, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
 

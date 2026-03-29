@@ -22,7 +22,7 @@ namespace AuthService.API.Controllers
         [HttpPost("get-password-reset-token")]
         public IActionResult getResetPasswordResetToken(UserIdRequestDto dto)
         {
-            var resetPasswordJwt = _jwtProvider.GenerateResetPasswordResetToken(Guid.Parse(dto.userId));
+            var resetPasswordJwt = _jwtProvider.GenerateResetPasswordResetToken(Guid.Parse(dto.UserId));
 
             return Ok(resetPasswordJwt);
         }
@@ -40,7 +40,7 @@ namespace AuthService.API.Controllers
         [HttpPost("get-request-new-email-cofirmation-token")]
         public IActionResult getRequestNewEmailCofirmationToken(UserIdRequestDto dto)
         {
-            var resetPasswordJwt = _jwtProvider.GenerateRequestNewEmailCofirmationToken(Guid.Parse(dto.userId));
+            var resetPasswordJwt = _jwtProvider.GenerateRequestNewEmailCofirmationToken(Guid.Parse(dto.UserId));
 
             return Ok(resetPasswordJwt);
         }

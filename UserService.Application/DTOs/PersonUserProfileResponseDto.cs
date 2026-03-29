@@ -1,11 +1,11 @@
 ﻿namespace UserService.Application.DTOs
 {
-    public class PersonUserProfileDto
+    public class PersonUserProfileResponseDto
     {
-        public string FirstName { get; set; } = default!;
-        public string LastName { get; set; } = default!;
-        public string Email { get; set; } = default!;
-        public string PhoneNumer { get; set; } = default!;
+        public required string FirstName { get; set; } 
+        public required string LastName { get; set; }
+        public required string Email { get; set; }
+        public required string PhoneNumer { get; set; }
         public bool IsVerified { get; set; }
         public bool IsTwoFactorEnabled { get; set; }
         public bool IsOAuthOnly { get; set; }

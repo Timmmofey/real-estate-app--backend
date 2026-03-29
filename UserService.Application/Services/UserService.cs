@@ -49,7 +49,7 @@ namespace UserService.Application.Services
             _localizer = localizer;
         }
 
-        public async Task<Guid> CreatePersonUserAsync(CreatePersonUserDto dto, CancellationToken ct)
+        public async Task<Guid> CreatePersonUserAsync(CreatePersonUserRequestDto dto, CancellationToken ct)
         {
             await ValidateEmailAndPhoneNumberUniquenessAsync(dto.Email, dto.PhoneNumber, ct);
 
@@ -95,7 +95,7 @@ namespace UserService.Application.Services
             return userId;
         }
 
-        public async Task<Guid> CreateCompanyUserAsync(CreateCompanyUserDto dto, CancellationToken ct)
+        public async Task<Guid> CreateCompanyUserAsync(CreateCompanyUserRequestDto dto, CancellationToken ct)
         {
             await ValidateEmailAndPhoneNumberUniquenessAsync(dto.Email, dto.PhoneNumber, ct);
 
@@ -219,7 +219,7 @@ namespace UserService.Application.Services
             return userId;
         }
 
-        public async Task<Guid> CreateCompanyUserFromOAuthAsync(CreateCompanyUserOAuthDto dto, CancellationToken ct)
+        public async Task<Guid> CreateCompanyUserFromOAuthAsync(CreateCompanyUserOAuthRequestDto dto, CancellationToken ct)
         {
             await FindExistingOrResentlyDeletedUser(dto.Email, dto.PhoneNumber, ct);
 
@@ -360,7 +360,7 @@ namespace UserService.Application.Services
         }
 
 
-        public async Task PatchCompanyProfileAsync(Guid userId, EditCompanyUserRequest updatedProfile, CancellationToken ct)
+        public async Task PatchCompanyProfileAsync(Guid userId, EditCompanyUserRequestDto updatedProfile, CancellationToken ct)
         {
             // получаем текущее фото, если будет загрузка или удаление
             string? prevMainPhotoUrl = null;
@@ -446,7 +446,7 @@ namespace UserService.Application.Services
                     throw new KeyNotFoundException();
                 }
 
-                var profileDto = new PersonUserProfileDto
+                var profileDto = new PersonUserProfileResponseDto
                 {
                     FirstName = profile.FirstName,
                     LastName = profile.LastName,
@@ -473,7 +473,7 @@ namespace UserService.Application.Services
                     throw new KeyNotFoundException();
                 }
 
-                var profileDto = new CompanyUserProfileDto
+                var profileDto = new CompanyUserProfileResponseDto
                 {
                     Name = profile.Name,
                     Email = user.Email,
@@ -635,7 +635,7 @@ namespace UserService.Application.Services
             await _emailService.SendEmail(email, "Password Reset Code", verificationCode);
         }
 
-        public async Task<string> GetPasswordResetTokenViaEmail(GetPasswordResetTokenDto dto, CancellationToken ct)
+        public async Task<string> GetPasswordResetTokenViaEmail(GetPasswordResetTokenRequestDto dto, CancellationToken ct)
         {
             var redisValue = await _redisService.GetAsync($"{RedisKey.PasswordReset}:{dto.Email}");
 

@@ -5,12 +5,12 @@ namespace UserService.Application.DTOs
 {
     public class CreatePersonUserOAuthDto
     {
-        public string Email { get; set; } = default!;
-        public string PhoneNumber { get; set; } = default!;
-        public string FirstName { get; set; } = default!;
-        public string LastName { get; set; } = default!;
-        public string ProviderUserId { get; set; } = default!;
-        public OAuthProvider Provider { get; set; } = default!;
+        public required string Email { get; set; }
+        public required string PhoneNumber { get; set; }
+        public  required string FirstName { get; set; } 
+        public required string LastName { get; set; } 
+        public required string ProviderUserId { get; set; } 
+        public required OAuthProvider Provider { get; set; } 
         public string? Password { get; set; }
         public string? Country { get; set; }
         public string? Region { get; set; }

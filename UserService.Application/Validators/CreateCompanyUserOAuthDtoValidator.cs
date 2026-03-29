@@ -3,7 +3,7 @@ using UserService.Application.DTOs;
 
 namespace UserService.Application.Validators
 {
-    public class CreateCompanyUserOAuthDtoValidator : AbstractValidator<CreateCompanyUserOAuthDto>
+    public class CreateCompanyUserOAuthDtoValidator : AbstractValidator<CreateCompanyUserOAuthRequestDto>
     {
         public CreateCompanyUserOAuthDtoValidator()
         {

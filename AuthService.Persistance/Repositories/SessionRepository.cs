@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AuthService.Persistance.Repositories
 {
-    public class SessionRepository : IRefreshTokenRepository
+    public class SessionRepository : ISessionRepository
     {
         private readonly AuthServicePostgreDbContext _context;
 

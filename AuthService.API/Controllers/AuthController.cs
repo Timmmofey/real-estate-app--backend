@@ -334,7 +334,7 @@ namespace AuthService.API.Controllers
 
         [AccessAuthorize]
         [HttpGet("get-current-user-sessions")]
-        public async Task<ActionResult<ICollection<SessionDto>>> GetUsersSessionAsync(CancellationToken ct)
+        public async Task<ActionResult<ICollection<SessionResponseDto>>> GetUsersSessionAsync(CancellationToken ct)
         {
             var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
             var sessionIdClaim = User.Claims.FirstOrDefault(r => r.Type == "sessionId")?.Value;

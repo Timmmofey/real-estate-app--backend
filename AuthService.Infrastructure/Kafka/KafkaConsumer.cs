@@ -41,7 +41,7 @@ namespace AuthService.Infrastructure.Kafka
 
                 var userId = consumeResult.Message.Value;
                 using var scope = _scopeFactory.CreateScope();
-                var dbContext = scope.ServiceProvider.GetRequiredService<IRefreshTokenRepository>();
+                var dbContext = scope.ServiceProvider.GetRequiredService<ISessionRepository>();
 
                 if (Guid.TryParse(userId, out var guid))
                 {

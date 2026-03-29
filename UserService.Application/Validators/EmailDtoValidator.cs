@@ -3,11 +3,11 @@ using UserService.Application.DTOs;
 
 namespace UserService.Application.Validators
 {
-    public class EmailDtoValidator : AbstractValidator<EmailDto>
+    public class EmailDtoValidator : AbstractValidator<EmailRequestDto>
     {
         public EmailDtoValidator()
         {
-            RuleFor(x => x.email)
+            RuleFor(x => x.Email)
                 .EmailAddress().WithMessage("Enter apropriate email adress");
         }
     }

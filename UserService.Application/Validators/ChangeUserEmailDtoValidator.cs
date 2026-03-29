@@ -3,7 +3,7 @@ using UserService.Application.DTOs;
 
 namespace UserService.Application.Validators
 {
-    public class ChangeUserEmailDtoValidator: AbstractValidator<ChangeUserEmailDto>
+    public class ChangeUserEmailDtoValidator: AbstractValidator<ChangeUserEmailRequestDto>
     {
         public ChangeUserEmailDtoValidator() 
         {

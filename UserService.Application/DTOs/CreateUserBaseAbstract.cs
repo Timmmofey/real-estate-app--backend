@@ -2,11 +2,11 @@
 
 namespace UserService.Application.DTOs
 {
-    public abstract class CreateUserBaseAbstract
+    public abstract record CreateUserBaseAbstract
     {
-        public string Email { get; set; } = default!;
-        public string Password { get; set; } = default!;
-        public string PhoneNumber { get; set; } = default!;
+        public required string Email { get; set; } 
+        public required string Password { get; set; } 
+        public required string PhoneNumber { get; set; } 
         public IFormFile? MainPhoto { get; set; }
     }
 }

@@ -2,10 +2,10 @@
 
 namespace UserService.Application.DTOs
 {
-    public class CreatePersonUserDto: CreateUserBaseAbstract
+    public record CreatePersonUserRequestDto : CreateUserBaseAbstract
     {
-        public string FirstName { get; set; } = default!;
-        public string LastName { get; set; } = default!;
+        public required string FirstName { get; set; }
+        public required string LastName { get; set; } 
         public string? Country { get; set; }
         public string? Region { get; set; }
         public string? Settlement { get; set; }

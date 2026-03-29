@@ -3,10 +3,10 @@ using System.Text.Json.Serialization;
 
 namespace AuthService.Domain.DTOs
 {
-    public class SessionDto
+    public record SessionResponseDto
     {
-        public Guid SessionId { get; set; } = default!;
-        public string DeviceName { get; set; } = default!;
+        public required Guid SessionId { get; set; }
+        public required string DeviceName { get; set; }
         public bool IsCurrentSession { get; set; }
         public DateTime LastActivity {  get; set; }
         [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -14,7 +14,5 @@ namespace AuthService.Domain.DTOs
         public string? IpAddress { get; set; } = null;
         public string? Country { get; set; } = null;
         public string? Settlement { get; set; } = null;
-
-
     }
 }

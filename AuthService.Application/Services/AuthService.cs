@@ -18,7 +18,7 @@ namespace AuthService.Application.Services
 {
     public class AuthService: IAuthService
     {
-        private readonly IRefreshTokenRepository _refreshTokenRepository;
+        private readonly ISessionRepository _refreshTokenRepository;
         private readonly IUserServiceClient _userServiceClient;
         private readonly IJwtProvider _jwtProvider;
         private readonly IHttpContextAccessor _http;
@@ -26,7 +26,7 @@ namespace AuthService.Application.Services
         private readonly IEmailService _emailService;
         private readonly IIpGeoService _ipGeoService;
 
-        public AuthService(IRefreshTokenRepository refreshTokenRepository, IUserServiceClient userServiceClient, IJwtProvider jwtProvider, IHttpContextAccessor http, IRedisService redisService, IEmailService emailService, IIpGeoService ipGeoService)
+        public AuthService(ISessionRepository refreshTokenRepository, IUserServiceClient userServiceClient, IJwtProvider jwtProvider, IHttpContextAccessor http, IRedisService redisService, IEmailService emailService, IIpGeoService ipGeoService)
         {
             _refreshTokenRepository = refreshTokenRepository;
             _userServiceClient = userServiceClient;
@@ -347,14 +347,14 @@ namespace AuthService.Application.Services
             return await _refreshTokenRepository.DeleteRefreshTokenByUserIdAndIdAsync(userId, id, ct);
         }
 
-        public async Task<ICollection<SessionDto>> GetUsersSessions(Guid userId, Guid sessionId, CancellationToken ct)
+        public async Task<ICollection<SessionResponseDto>> GetUsersSessions(Guid userId, Guid sessionId, CancellationToken ct)
         {
             var refreshTokens = await _refreshTokenRepository.GetUsersSessionsAsync(userId, ct);
-            var usersSessions = new List<SessionDto>();
+            var usersSessions = new List<SessionResponseDto>();
 
             foreach (var refreshToken in refreshTokens)
             {
-                var session = new SessionDto
+                var session = new SessionResponseDto
                 {
                     DeviceName = refreshToken.DeviceName,
                     DeviceType = refreshToken.DeviceType,

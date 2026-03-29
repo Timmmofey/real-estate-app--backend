@@ -64,7 +64,7 @@ builder.Services.AddSingleton<IJwtProvider, JwtProvider>();
 
 // AuthService
 builder.Services.AddScoped<IAuthService, AuthService.Application.Services.AuthService>();
-builder.Services.AddScoped<IRefreshTokenRepository, SessionRepository>();
+builder.Services.AddScoped<ISessionRepository, SessionRepository>();
 
 //Fluent validation
 builder.Services.AddValidatorsFromAssembly(typeof(AssemblyMarker).Assembly);
