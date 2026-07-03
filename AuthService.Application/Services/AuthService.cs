@@ -240,9 +240,7 @@ namespace AuthService.Application.Services
             string? city = null;
 
             if (prevIp != currentIp)
-            {
                 (deviceName, deviceType, ipAddress, country, city) = await GetDeviceInfo();
-            }
 
             var newRefreshTokenGuid = Guid.NewGuid();
 

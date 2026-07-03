@@ -33,7 +33,8 @@ namespace UserService.API.Controllers
             _tokenValidator = tokenValidator;
         }
 
-        [HttpPost("add-person-user")]
+        //[HttpPost("add-person-user")]
+        [HttpPost("person")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> CreatePersonUser([FromForm] CreatePersonUserRequestDto dto, CancellationToken ct)
         {
@@ -42,7 +43,8 @@ namespace UserService.API.Controllers
             return Created($"/users/{userId}", new { Message = _localizer["UserCreated"], UserId = userId });
         }
 
-        [HttpPost("add-company-user")]
+        //[HttpPost("add-company-user")]
+        [HttpPost("company")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> CreateCompanyUser([FromForm] CreateCompanyUserRequestDto dto, CancellationToken ct)
         {
@@ -51,8 +53,9 @@ namespace UserService.API.Controllers
             return Created($"/users/{userId}", new { Message = "User has been created successfully", UserId = userId });
         }
 
+        //[HttpPost("complete-oauth-registration")]
         [Authorize(Policy = nameof(JwtTokenType.OAuthRegistration))]
-        [HttpPost("complete-oauth-registration")]
+        [HttpPost("oauth/complete")]
         public async Task<IActionResult> CompleteOAuthRegistration([FromForm] CompleteOAuthRegistrationRequestDto dto, CancellationToken ct)
         {
             if (!Request.Cookies.TryGetValue(CookieNames.OAuthRegistration, out var token))
@@ -121,8 +124,9 @@ namespace UserService.API.Controllers
             return Ok();
         }
 
+        //[HttpPatch("edit-person-profile-main-info")]
         [AccessAuthorize(Roles = "Person")]
-        [HttpPatch("edit-person-profile-main-info")]
+        [HttpPatch("me/profile/person")]
         public async Task<IActionResult> PatchPersonProfile([FromForm] EditPersonUserRequest updatedProfile, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
@@ -132,8 +136,9 @@ namespace UserService.API.Controllers
             return NoContent();
         }
 
+        //[HttpPatch("edit-company-profile-main-info")]
         [AccessAuthorize(Roles = "Company")]
-        [HttpPatch("edit-company-profile-main-info")]
+        [HttpPatch("me/profile/сompany")]
         public async Task<IActionResult> PatchCompanyProfile([FromForm] EditCompanyUserRequestDto updatedProfile, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
@@ -143,8 +148,9 @@ namespace UserService.API.Controllers
             return NoContent();
         }
 
+        //[HttpDelete("delete-account")]
         [Authorize(Roles = "Person, Company")]
-        [HttpDelete("delete-account")]
+        [HttpPatch("me")]
         public async Task<IActionResult> DeleteAccount(CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
@@ -156,8 +162,9 @@ namespace UserService.API.Controllers
             return Ok();
         }
 
+        //[HttpPost("restore-deleted-account")] 
         [Authorize(Policy = nameof(JwtTokenType.Restore))]
-        [HttpPost("restore-deleted-account")]
+        [HttpPost("me/restore")]
         public async Task<IActionResult> RestoreDeletedAccount(CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request, CookieNames.Restore);
@@ -169,8 +176,9 @@ namespace UserService.API.Controllers
             return NoContent();
         }
 
+        //[HttpDelete("permanantly-delete-account")]
         [Authorize(Policy = nameof(JwtTokenType.Restore))]
-        [HttpDelete("permanantly-delete-account")]
+        [HttpDelete("me/permanent")]
         public async Task<IActionResult> PermanantlyDeleteAccount(CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request, CookieNames.Restore);
@@ -182,8 +190,9 @@ namespace UserService.API.Controllers
             return NoContent();
         }
 
+        //[HttpGet("get-current-user-info")]
         [AccessAuthorize]
-        [HttpGet("get-current-user-info")]
+        [HttpGet("me")]
         public async Task<IActionResult> GetPersonalInfo(CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
@@ -198,8 +207,9 @@ namespace UserService.API.Controllers
         /// /////// Toggle 2FA
         /// </summary> 
 
+        //[HttpPost("request-toggle-two-factor-authentication-code")]
         [AccessAuthorize]
-        [HttpPost("request-toggle-two-factor-authentication-code")]
+        [HttpPost("me/2fa/toggle-request")]
         public async Task<IActionResult> RequestToggleTwoFactorAuthenticationCode(CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
@@ -209,8 +219,9 @@ namespace UserService.API.Controllers
             return Ok();
         }
 
+        //[HttpPost("toggle-two-factor-authentication")]
         [AccessAuthorize]
-        [HttpPost("toggle-two-factor-authentication")]
+        [HttpPut("me/2fa-toggle")]
         public async Task<IActionResult> ToggleTwoFactorAuthentication(VerificationCodeDto dto, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
@@ -226,7 +237,8 @@ namespace UserService.API.Controllers
         /// /////// Reset Password Via Email
         /// </summary> 
 
-        [HttpPost("start-password-reset-via-email")]
+        //[HttpPost("start-password-reset-via-email")]
+        [HttpPost("password-reset/request")]
         public async Task<IActionResult> StartPasswordResetViaEmail([FromForm] string email, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(email))
@@ -237,7 +249,8 @@ namespace UserService.API.Controllers
             return Ok();
         }
 
-        [HttpPost("get-password-reset-token-via-email")]
+        //[HttpPost("get-password-reset-token-via-email")]
+        [HttpPost("password-reset/verify")]
         public async Task<IActionResult> GetPasswordResetTokenViaEmail([FromBody] GetPasswordResetTokenRequestDto dto, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.VerificationCode))
@@ -250,8 +263,9 @@ namespace UserService.API.Controllers
             return Ok("Reset token issued");
         }
 
+        //[HttpPost("complete-password-restoration-via-email")]
         [Authorize(Policy = nameof(JwtTokenType.PasswordReset))]
-        [HttpPost("complete-password-restoration-via-email")]
+        [HttpPut("password-reset/complete")]
         public async Task<IActionResult> CompletePasswordResorationViaEmail([FromForm] string newPassword, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request, CookieNames.PasswordReset);
@@ -263,7 +277,8 @@ namespace UserService.API.Controllers
             return Ok();
         }
 
-        [HttpGet("get-user-role-by-id")]
+        //[HttpGet("get-user-role-by-id")]
+        [HttpGet("{userId}/role")]
         public async Task<UserRole?> GetUserRoleById(string userId, CancellationToken ct)
         {
             var user = await _userService.GetUserById(Guid.Parse(userId), ct);
@@ -275,8 +290,9 @@ namespace UserService.API.Controllers
         /// /////// Email Change Via Email
         /// </summary>      
 
+        //[HttpPost("start-email-change-via-email")]
         [AccessAuthorize]
-        [HttpPost("start-email-change-via-email")]
+        [HttpPost("me/email-change/request")]
         public async Task<IActionResult> StartEmailChangeViaEmailViaEmail(CancellationToken ct)
         {
             var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
@@ -288,7 +304,8 @@ namespace UserService.API.Controllers
             return Ok("Reset code sent");
         }
 
-        [HttpPost("confirm-current-email")]
+        //[HttpPost("confirm-current-email")]
+        [HttpPost("me/email-change/confirm-current")]
         public async Task<IActionResult> ConfirmCurrentEmail([FromBody] VerificationCodeDto dto, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
@@ -300,8 +317,9 @@ namespace UserService.API.Controllers
             return Ok("Reset token issued");
         }
 
+        //[HttpPost("send-new-email-cofirmation-code")]
         [Authorize(Policy = nameof(JwtTokenType.RequestNewEmailCofirmation))]
-        [HttpPost("send-new-email-cofirmation-code")]
+        [HttpPost("me/email-change/send-new-code")]
         public async Task<IActionResult> SendCofirmationCodeToNewEmail([FromBody] EmailRequestDto dto, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request, CookieNames.RequestNewEmailCofirmation);
@@ -312,8 +330,9 @@ namespace UserService.API.Controllers
             return Ok("Reset code sent");
         }
 
+        //[HttpPost("confirm-new-email")]
         [AccessAuthorize]
-        [HttpPost("confirm-new-email")]
+        [HttpPost("me/email-change/confirm-new")]
         public async Task<IActionResult> ConfirmNewEmail([FromBody] VerificationCodeDto dto, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
@@ -325,8 +344,9 @@ namespace UserService.API.Controllers
             return Ok("Reset token issued");
         }
 
+        //[HttpPost("complete-email-change-via-email")]
         [Authorize(Policy = nameof(JwtTokenType.EmailReset))]
-        [HttpPost("complete-email-change-via-email")]
+        [HttpPut("me/email-change/complete")]
         public async Task<IActionResult> CompleteEmailChangeViaEmailViaEmail(CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request, CookieNames.EmailReset);
@@ -343,8 +363,9 @@ namespace UserService.API.Controllers
         /// /////// Reset password via Email
         /// </summary> 
 
+        //[HttpPost("change-user-phone-number")]
         [AccessAuthorize]
-        [HttpPost("change-user-phone-number")]
+        [HttpPut("me/phone")]
         public async Task<IActionResult> ChangeUserPhoneNumber([FromForm] ChangeUserPhoneNumberRequestDto phoneNumber, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
@@ -354,8 +375,9 @@ namespace UserService.API.Controllers
             return Ok();
         }
 
+        //[HttpPost("change-user-password")]
         [AccessAuthorize]
-        [HttpPost("change-user-password")]
+        [HttpPut("me/password")]
         public async Task<IActionResult> ChangeUserPassword([FromForm] ChangeUserPassordRequestDto dto, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
@@ -369,8 +391,9 @@ namespace UserService.API.Controllers
         /// /////// OAuth
         /// </summary> 
         
+        //[HttpGet("get-my-o-auth-accounts")]
         [AccessAuthorize]
-        [HttpGet("get-my-o-auth-accounts")]
+        [HttpGet("me/oauth-accounts")]
         public async Task<ActionResult<ICollection<UserOAuthAccountDto>>> GetMyOAuthAccounts(CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
@@ -380,9 +403,10 @@ namespace UserService.API.Controllers
             return Ok(res);
         }
 
+        //[HttpPost("unlink-oauth-account-from-me")]
         [AccessAuthorize]
-        [HttpPost("unlink-oauth-account-from-me")]
-        public async Task<IActionResult> UnlinkOAuthAccountFromMe([FromQuery] OAuthProvider provider, CancellationToken ct)
+        [HttpDelete("me/oauth-accounts/{provider}")]
+        public async Task<IActionResult> UnlinkOAuthAccountFromMe([FromRoute] OAuthProvider provider, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
 

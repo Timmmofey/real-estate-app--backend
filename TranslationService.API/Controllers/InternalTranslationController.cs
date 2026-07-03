@@ -6,7 +6,7 @@ using TranslationService.Domain.Abstractions;
 
 namespace TranslationService.API.Controllers
 {
-    [Route("internal-api/translation")]
+    [Route("internal-api/translations")]
     [ApiController]
     public class InternalTranslationController : ControllerBase
     {
@@ -18,7 +18,7 @@ namespace TranslationService.API.Controllers
         }
 
         [AuthorizeServerJwt(InternalServices.GeoService)]
-        [HttpGet("multiple-translate")]
+        [HttpGet("multiple")]
         public async Task<MultiLanguageTranslationResultDto?> multipleTranslate(string text)
         {
             return await _googleTranslateService.MultipleTranslateAsync(text) ?? null;

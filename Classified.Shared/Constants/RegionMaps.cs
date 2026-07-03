@@ -3,10 +3,10 @@
     public static class RegionMaps
     {
         private static readonly Dictionary<string, string> Countries = new()
-    {
-        {"US","United States"},
-        {"CA","Canada"},
-    };
+        {
+            {"US","United States"},
+            {"CA","Canada"},
+        };
 
         private static readonly Dictionary<string, Dictionary<string, string>> Regions = new()
         {

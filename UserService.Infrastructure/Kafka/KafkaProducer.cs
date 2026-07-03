@@ -1,19 +1,22 @@
 ﻿using Confluent.Kafka;
+using Microsoft.Extensions.Configuration;
 
 namespace UserService.Infrastructure.Kafka
 {
     public class KafkaProducer: IKafkaProducer
     {
         private readonly IProducer<string, string> _producer;
-        public KafkaProducer() {
-            var config = new ProducerConfig
+        public KafkaProducer(IConfiguration config)
+        {
+            var producerConfig = new ProducerConfig
             {
-                BootstrapServers = "localhost:9092",
-                MessageTimeoutMs = 3000,
-                SocketTimeoutMs = 3000,
+                BootstrapServers = config["Kafka:BootstrapServers"],
+                MessageTimeoutMs = int.Parse(config["Kafka:MessageTimeoutMs"]!),
+                SocketTimeoutMs = int.Parse(config["Kafka:SocketTimeoutMs"]!),
                 Acks = Acks.All
             };
-            _producer = new ProducerBuilder<string, string>(config).Build();
+
+            _producer = new ProducerBuilder<string, string>(producerConfig).Build();
         }
 
         public async Task ProduceAsync(string topic, Message<string, string> message)

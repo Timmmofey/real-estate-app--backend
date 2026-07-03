@@ -29,7 +29,7 @@ namespace UserService.Infrastructure.AuthService
                 UserId = userId,
             };
 
-            var response = await _http.PostAsJsonAsync($"internal-api/auth/get-password-reset-token", request, ct);
+            var response = await _http.PostAsJsonAsync($"internal-api/auth/password-reset-token", request, ct);
 
             if (!response.IsSuccessStatusCode)
                 throw new Exception("eror occured while getting pwd reset token");
@@ -47,7 +47,7 @@ namespace UserService.Infrastructure.AuthService
                 NewEmail = newEmail
             };
 
-            var response = await _http.PostAsJsonAsync($"internal-api/auth/get-email-reset-token", request, ct);
+            var response = await _http.PostAsJsonAsync($"internal-api/auth/email-reset-token", request, ct);
 
             if (!response.IsSuccessStatusCode)
                 throw new Exception("eror occured while getting email reset token");
@@ -64,7 +64,7 @@ namespace UserService.Infrastructure.AuthService
                 UserId = userId
             };
 
-            var response = await _http.PostAsJsonAsync($"internal-api/auth/get-request-new-email-cofirmation-token", request, ct);
+            var response = await _http.PostAsJsonAsync($"internal-api/auth/request-new-email-cofirmation-token", request, ct);
 
             if (!response.IsSuccessStatusCode)
                 throw new Exception("eror occured while getting new email confirmation token");

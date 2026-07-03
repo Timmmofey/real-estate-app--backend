@@ -15,8 +15,9 @@ namespace GeoService.API.Controllers
             _geoapifyGeoService = geoapifyGeoService;
         }
 
+        //[HttpGet("verifysettlement")]
         [AuthorizeServerJwt(InternalServices.UserService)]
-        [HttpGet("verifysettlement")]
+        [HttpGet("settlements/verifications")]
         public async Task<IActionResult> VerifySettlement([FromQuery] string countryCode, [FromQuery] string regionCode, [FromQuery] string settlement)
         {
             var res = await _geoapifyGeoService.GetValidatedSettlement(countryCode, regionCode, settlement);

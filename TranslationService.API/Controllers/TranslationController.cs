@@ -4,7 +4,7 @@ using TranslationService.Domain.Abstractions;
 
 namespace TranslationService.API.Controllers
 {
-    [Route("api/translation")]
+    [Route("api/translations")]
     [ApiController]
     public class TranslationController : ControllerBase
     {
@@ -15,14 +15,14 @@ namespace TranslationService.API.Controllers
             _googleTranslateService = googleTranslateService;
         }
 
-        [HttpGet("translate")]
+        [HttpGet("single")]
         public async Task<IActionResult> translate(string text, string targetLanguage) {
             var res = await _googleTranslateService.TranslateAsync(text, targetLanguage);
 
             return Ok(res);
         }
 
-        [HttpGet("multiple-translate")]
+        [HttpGet("multiple")]
         public async Task<MultiLanguageTranslationResultDto?> multipleTranslate(string text)
         {
             return await _googleTranslateService.MultipleTranslateAsync(text) ?? null;

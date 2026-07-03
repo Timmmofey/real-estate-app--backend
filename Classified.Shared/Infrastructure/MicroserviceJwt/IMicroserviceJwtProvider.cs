@@ -1,6 +1,4 @@
-﻿using Classified.Shared.Constants;
-
-namespace Classified.Shared.Infrastructure.MicroserviceJwt
+﻿namespace Classified.Shared.Infrastructure.MicroserviceJwt
 {
     public interface IMicroserviceJwtProvider
     {

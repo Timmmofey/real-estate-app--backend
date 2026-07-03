@@ -19,7 +19,7 @@ namespace AuthService.API.Controllers
         }
 
         [AuthorizeServerJwt(InternalServices.UserService)]
-        [HttpPost("get-password-reset-token")]
+        [HttpPost("password-reset-token")]
         public IActionResult getResetPasswordResetToken(UserIdRequestDto dto)
         {
             var resetPasswordJwt = _jwtProvider.GenerateResetPasswordResetToken(Guid.Parse(dto.UserId));
@@ -28,7 +28,7 @@ namespace AuthService.API.Controllers
         }
 
         [AuthorizeServerJwt(InternalServices.UserService)]
-        [HttpPost("get-email-reset-token")]
+        [HttpPost("email-reset-token")]
         public IActionResult getResetEmailResetToken([FromBody] GetResetEmailResetTokenRequestDto dto)
         {
             var resetEmailJwt = _jwtProvider.GenerateResetEmailResetToken(Guid.Parse(dto.userId), dto.newEmail);
@@ -37,7 +37,7 @@ namespace AuthService.API.Controllers
         }
 
         [AuthorizeServerJwt(InternalServices.UserService)]
-        [HttpPost("get-request-new-email-cofirmation-token")]
+        [HttpPost("request-new-email-cofirmation-token")]
         public IActionResult getRequestNewEmailCofirmationToken(UserIdRequestDto dto)
         {
             var resetPasswordJwt = _jwtProvider.GenerateRequestNewEmailCofirmationToken(Guid.Parse(dto.UserId));

@@ -68,7 +68,7 @@ namespace AuthService.Infrastructure.UserService
             };
 
             var url = QueryHelpers.AddQueryString(
-                "internal-api/users/get-user-o-auth-account-by-provider-and-provider-user-id-async",
+                "internal-api/users/get-user-o-auth-account-by-provider-and-provider-user-id",
                 queryParams);
 
             var response = await _http.GetAsync(url, ct);
@@ -89,7 +89,7 @@ namespace AuthService.Infrastructure.UserService
                 { "email", email },
             };
 
-            var url = QueryHelpers.AddQueryString("internal-api/users/get-user-id-by-email-async", queryParams);
+            var url = QueryHelpers.AddQueryString("internal-api/users/get-user-id-by-email", queryParams);
 
             var response = await _http.GetAsync(url, ct);
             if (!response.IsSuccessStatusCode)

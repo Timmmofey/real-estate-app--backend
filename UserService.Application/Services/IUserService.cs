@@ -11,7 +11,7 @@ namespace UserService.Application.Abstactions
         Task<Guid> CreateCompanyUserAsync(CreateCompanyUserRequestDto dto, CancellationToken ct);
         Task<Guid> CreatePersonUserFromOAuthAsync(CreatePersonUserOAuthDto dto, CancellationToken ct);
         Task<Guid> CreateCompanyUserFromOAuthAsync(CreateCompanyUserOAuthRequestDto dto, CancellationToken ct);
-        Task<VerifiedUserDto> VerifyUsersCredentials(string emailOrPhone, string password, CancellationToken ct);
+        Task<VerifiedUserDto?> VerifyUsersCredentials(string emailOrPhone, string password, CancellationToken ct);
 
         Task PatchPersonProfileAsync(Guid userId, EditPersonUserRequest updatedProfile, CancellationToken ct);
         Task PatchCompanyProfileAsync(Guid userId, EditCompanyUserRequestDto updatedProfile, CancellationToken ct);

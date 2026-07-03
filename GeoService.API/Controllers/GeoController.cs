@@ -8,41 +8,43 @@ namespace GeoService.API.Controllers
     [ApiController]
     public class GeoController : ControllerBase
     {
-        private readonly IOpenCageGeoService _openCageGeoService;
+        //private readonly IOpenCageGeoService _openCageGeoService;
         private readonly IGeoapifyGeoService _geoapifyGeoService;
         public GeoController(IOpenCageGeoService geoService, IGeoapifyGeoService geoapifyGeoService)
         {
-            _openCageGeoService = geoService;
+            //_openCageGeoService = geoService;
             _geoapifyGeoService = geoapifyGeoService;
         }
 
-        [HttpGet("suggest-open-cage")]
-        public async Task<IActionResult> GetSuggestionsOpenCage(
-            [FromQuery] string query,
-            [FromQuery] string? countryCode = null,
-            [FromQuery] string? stateCode = null,
-            [FromQuery] int limit = 10)
-        {
-            if (string.IsNullOrWhiteSpace(query)) return BadRequest("Query is required");
+        //[HttpGet("suggest-open-cage")]
+        //public async Task<IActionResult> GetSuggestionsOpenCage(
+        //    [FromQuery] string query,
+        //    [FromQuery] string? countryCode = null,
+        //    [FromQuery] string? stateCode = null,
+        //    [FromQuery] int limit = 10)
+        //{
+        //    if (string.IsNullOrWhiteSpace(query)) return BadRequest("Query is required");
 
-            var res = await _openCageGeoService.GetSettlementSuggestionsAsync(query, countryCode, stateCode, limit);
-            return Ok(res);
-        }
+        //    var res = await _openCageGeoService.GetSettlementSuggestionsAsync(query, countryCode, stateCode, limit);
+        //    return Ok(res);
+        //}
 
-        [HttpGet("suggest-post-code-open-cage")]
-        public async Task<IActionResult> GetPostCodeSuggestionsOpenCage(
-            [FromQuery] string countryCode,
-            [FromQuery] string? stateCode,
-            [FromQuery] string settlement)
-        {
-            if (string.IsNullOrWhiteSpace(countryCode) || string.IsNullOrWhiteSpace(stateCode) || string.IsNullOrWhiteSpace(settlement)) return BadRequest("Query is required");
+        //[HttpGet("suggest-post-code-open-cage")]
+        //public async Task<IActionResult> GetPostCodeSuggestionsOpenCage(
+        //    [FromQuery] string countryCode,
+        //    [FromQuery] string? stateCode,
+        //    [FromQuery] string settlement)
+        //{
+        //    if (string.IsNullOrWhiteSpace(countryCode) || string.IsNullOrWhiteSpace(stateCode) || string.IsNullOrWhiteSpace(settlement)) return BadRequest("Query is required");
 
-            var res = await _openCageGeoService.GetPostcodeSuggestionsAsync(countryCode, stateCode, settlement);
-            return Ok(res);
-        }
+        //    var res = await _openCageGeoService.GetPostcodeSuggestionsAsync(countryCode, stateCode, settlement);
+        //    return Ok(res);
+        //}
 
         // GET /api/Geo/suggest?query=hou&countryCode=US&stateCode=TX&limit=10
-        [HttpGet("suggestsettlements")]
+
+        //[HttpGet("suggestsettlements")]
+        [HttpGet("settlements/suggestions")]
         public async Task<IActionResult> GetSuggestions([FromQuery] string query, [FromQuery] string countryCode, [FromQuery] string regionCode)
         {
             if (string.IsNullOrWhiteSpace(query)) return BadRequest("query is required");
@@ -50,7 +52,8 @@ namespace GeoService.API.Controllers
             return Ok(res);
         }
 
-        [HttpGet("suggestadress")]
+        //[HttpGet("suggestadress")]
+        [HttpGet("addresses/suggestions")]
         public async Task<IActionResult> GetAdresses([FromQuery] string countryCode, [FromQuery] string stateCode, [FromQuery] string city, [FromQuery] string streetAndNumber)
         {
             if (string.IsNullOrWhiteSpace(streetAndNumber)) return BadRequest("query is required");
@@ -69,8 +72,9 @@ namespace GeoService.API.Controllers
             return Ok(res);
         }
 
-        [HttpGet("verifyaddress")]
-        public async Task<IActionResult> VerifyAddress([FromQuery] string text)
+        //[HttpGet("verifyaddress")]
+        [HttpPost("addresses/verifications")]
+        public async Task<IActionResult> VerifyAddress([FromBody] string text)
         {
             var res = await _geoapifyGeoService.GetValidatedFullAddress(text);
             return Ok(res);

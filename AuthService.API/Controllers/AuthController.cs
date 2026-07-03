@@ -86,8 +86,9 @@ namespace AuthService.API.Controllers
             }
         }
 
+        //[HttpPost("login-via-two-factor-auth")]
         [Authorize(Policy = nameof(JwtTokenType.TwoFactorAuthentication))]
-        [HttpPost("login-via-two-factor-auth")]
+        [HttpPost("login/2fa")]
         public async Task<IActionResult> LoginViaTwoFactorAuth([FromBody]string code, CancellationToken ct)
         {
             if (!Request.Cookies.TryGetValue(CookieNames.TwoFactorAuthentication, out var twoFactorAuthenticationToken) || string.IsNullOrEmpty(code))
@@ -283,8 +284,9 @@ namespace AuthService.API.Controllers
             return Ok();
         }
 
+        //[HttpPost("logout")]
         [AccessAuthorize]
-        [HttpPost("logout")]
+        [HttpDelete("sessions/current")]
         public async Task<IActionResult> Logout(CancellationToken ct)
         {
             Guid deviceId = TryGetDeviceIdFromCookie();
@@ -296,8 +298,9 @@ namespace AuthService.API.Controllers
             return NoContent();
         }
 
+        //[HttpPost("logout-all")]
         [AccessAuthorize]
-        [HttpPost("logout-all")]
+        [HttpDelete("sessions")]
         public async Task<IActionResult> LogoutAll(CancellationToken ct)
         {
             var userId = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
@@ -313,8 +316,9 @@ namespace AuthService.API.Controllers
             return NoContent();
         }
 
+        //[HttpPost("terminate-session")]
         [AccessAuthorize]
-        [HttpPost("terminate-session")]
+        [HttpDelete("sessions/{sessionId}")]
         public async Task<IActionResult> TerminateSessionAsync(Guid sessionId, CancellationToken ct)
         {
             if (sessionId == Guid.Empty)
@@ -332,8 +336,9 @@ namespace AuthService.API.Controllers
             return NoContent();
         }
 
+        //[HttpGet("get-current-user-sessions")]
         [AccessAuthorize]
-        [HttpGet("get-current-user-sessions")]
+        [HttpGet("sessions")]
         public async Task<ActionResult<ICollection<SessionResponseDto>>> GetUsersSessionAsync(CancellationToken ct)
         {
             var userIdClaim = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
@@ -350,7 +355,7 @@ namespace AuthService.API.Controllers
             if (sessions == null || !sessions.Any())
             {
                 CookieHepler.RemoveRefreshAuthDeviceTokens(Response);
-                return NoContent();
+                return Unauthorized();
             }
 
             return Ok(sessions);

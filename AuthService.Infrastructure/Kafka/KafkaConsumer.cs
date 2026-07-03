@@ -1,6 +1,7 @@
 ﻿using AuthService.Domain.Abstactions;
 using Classified.Shared.Constants;
 using Confluent.Kafka;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -8,11 +9,13 @@ namespace AuthService.Infrastructure.Kafka
 {
     public class KafkaConsumer : BackgroundService
     {
+        private readonly IConfiguration _config;
         private readonly IServiceScopeFactory _scopeFactory;
 
-        public KafkaConsumer(IServiceScopeFactory scopeFactory)
+        public KafkaConsumer(IServiceScopeFactory scopeFactory, IConfiguration config)
         {
             _scopeFactory = scopeFactory;
+            _config = config;
         }
 
         protected override  Task ExecuteAsync(CancellationToken stoppingToken)
@@ -27,7 +30,8 @@ namespace AuthService.Infrastructure.Kafka
             var config = new ConsumerConfig
             {
                 GroupId = "recalled-session-group",
-                BootstrapServers = "localhost:9092",
+                //BootstrapServers = "localhost:9092",
+                BootstrapServers = _config["Kafka:BootstrapServers"],
                 AutoOffsetReset = AutoOffsetReset.Earliest
             };
 

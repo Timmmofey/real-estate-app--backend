@@ -21,7 +21,7 @@ namespace UserService.Infrastructure.GeoService
         {
             _http.SetServerJwt(_microserviceJwtProvider, _serviceName);
 
-            var response = await _http.GetAsync($"internal-api/Geo/verifysettlement?countryCode={countryCode}&regionCode={regionCode}&settlement={settlement}");
+            var response = await _http.GetAsync($"internal-api/Geo/settlements/verifications?countryCode={countryCode}&regionCode={regionCode}&settlement={settlement}");
 
             if (!response.IsSuccessStatusCode)
                 return false;

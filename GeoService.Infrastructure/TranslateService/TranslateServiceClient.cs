@@ -1,6 +1,5 @@
 ﻿using Classified.Shared.Constants;
 using Classified.Shared.DTOs;
-using Classified.Shared.Extensions;
 using Classified.Shared.Infrastructure.MicroserviceJwt;
 using Classified.Shared.Libs;
 using GeoService.Domain.Abstractions;
@@ -35,7 +34,7 @@ namespace GeoService.Infrastructure.TranslateService
                 { "text" ,  text }
             };
 
-            var url = QueryHelpers.AddQueryString("internal-api/translation/multiple-translate", queryParams);
+            var url = QueryHelpers.AddQueryString("internal-api/translations/multiple", queryParams);
 
             try
             {

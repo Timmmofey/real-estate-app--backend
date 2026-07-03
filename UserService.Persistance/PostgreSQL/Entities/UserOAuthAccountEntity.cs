@@ -7,9 +7,8 @@ namespace UserService.Persistance.PostgreSQL.Entities
         public Guid Id { get; set; }
         public Guid UserId { get; set; }
         public OAuthProvider OAuthProviderName { get; set; }
-        public string ProviderUserId { get; set; } = default!;
+        public required string ProviderUserId { get; set; } 
         public DateTime CreatedAt { get; set; }
-
         public UserEntity User { get; set; } = default!;
     }
 }

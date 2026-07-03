@@ -398,13 +398,22 @@ namespace UserService.Application.Services
 
         public async Task SoftDeleteAccount(Guid id, CancellationToken ct)
         {
-            await _kafkaProducer.ProduceAsync(KafkaTopic.RecalledSessionsTopic, new Message<string, string>
+            await _unitOfWork.BeginAsync();
+            try
             {
-                Key = Guid.NewGuid().ToString(),
-                Value = id.ToString()
-            });
-
-            await _userRepository.SoftDeleteUserAsync(id, ct);
+                await _userRepository.SoftDeleteUserAsync(id, ct);
+                await _kafkaProducer.ProduceAsync(KafkaTopic.RecalledSessionsTopic, new Message<string, string>
+                {
+                    Key = Guid.NewGuid().ToString(),
+                    Value = id.ToString()
+                });
+                await _unitOfWork.CommitAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task RestoreDeletedAccount(Guid id, CancellationToken ct)

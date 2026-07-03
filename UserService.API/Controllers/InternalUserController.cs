@@ -23,7 +23,7 @@ namespace UserService.API.Controllers
         }
 
         [AuthorizeServerJwt(InternalServices.AuthService)]
-        [HttpGet("get-user-id-by-email-async")]
+        [HttpGet("get-user-id-by-email")]
         public async Task<Guid?> GetUserIdByEmailAsync(string email, CancellationToken ct)
         {
             var result = await _userService.GetUserIdByEmailAsync(email, ct);
@@ -60,7 +60,7 @@ namespace UserService.API.Controllers
         }
 
         [AuthorizeServerJwt(InternalServices.AuthService)]
-        [HttpGet("get-user-o-auth-account-by-provider-and-provider-user-id-async")]
+        [HttpGet("get-user-o-auth-account-by-provider-and-provider-user-id")]
         public async Task<ActionResult<UserOAuthAccountDto>> GetUserOAuthAccountByProviderAndProviderUserIdAsync(
             string providerName,
             string providerUserId,

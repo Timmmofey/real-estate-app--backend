@@ -6,9 +6,9 @@ namespace UserService.Persistance.PostgreSQL.Entities
     public class UserEntity
     {
         public Guid Id { get; set; }
-        public string Email { get; set; } = default!;
+        public required string Email { get; set; }
         public string? PasswordHash { get; set; }
-        public string PhoneNumber { get; set; } = default!;
+        public required string PhoneNumber { get; set; }
         public UserRoleEntity Role { get; set; }
 
         public bool IsTwoFactorEnabled { get; set; } = false;
