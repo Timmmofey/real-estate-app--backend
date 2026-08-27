@@ -43,7 +43,7 @@ Backend реализован на **ASP.NET Core / C#** и построен с �
 - Кеширование и временные данные через Redis
 - Асинхронное взаимодействие микросервисов через **Kafka**
 - Transactional emails через SMTP
-- Работа с S3-compatible storage
+- Работа с **S3**-compatible storage
 - **Интеграция внешних REST API**
 - Обработка отмены асинхронных операций через `CancellationToken`
 - Мультиязычность (русский/английский)
