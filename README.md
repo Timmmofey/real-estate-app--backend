@@ -38,15 +38,16 @@ Backend реализован на **ASP.NET Core / C#** и построен с �
 - Разработка REST API
 - **JWT** Authentication & Authorization
 - **OAuth**
+- **EntityFramework**
 - Service-to-Service Authentication
-- Работа с PostgreSQL
+- Работа с **PostgreSQL**
 - Кеширование и временные данные через Redis
 - Асинхронное взаимодействие микросервисов через **Kafka**
-- Transactional emails через SMTP
+- Transactional emails через **SMTP**
 - Работа с **S3**-compatible storage
 - **Интеграция внешних REST API**
-- Обработка отмены асинхронных операций через `CancellationToken`
-- Мультиязычность (русский/английский)
+- Обработка отмены асинхронных операций через **CancellationToken**
+- **Мультиязычность** (русский/английский)
 
 ## Микросервисная архитектура
 
