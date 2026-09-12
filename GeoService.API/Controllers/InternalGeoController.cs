@@ -2,6 +2,7 @@
 using Classified.Shared.Extensions.ServerJwtAuth;
 using GeoService.Domain.Abstractions;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 
 namespace GeoService.API.Controllers
 {
@@ -18,7 +19,7 @@ namespace GeoService.API.Controllers
         //[HttpGet("verifysettlement")]
         [AuthorizeServerJwt(InternalServices.UserService)]
         [HttpGet("settlements/verifications")]
-        public async Task<IActionResult> VerifySettlement([FromQuery] string countryCode, [FromQuery] string regionCode, [FromQuery] string settlement)
+        public async Task<IActionResult> VerifySettlement([Required][FromQuery] string countryCode, [Required][FromQuery] string regionCode, [Required][FromQuery] string settlement)
         {
             var res = await _geoapifyGeoService.GetValidatedSettlement(countryCode, regionCode, settlement);
             return Ok(res);

@@ -1,5 +1,7 @@
-﻿namespace UserService.Application.DTOs
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace UserService.Application.DTOs
 {
-    public record UserIdRequestDto(string UserId);
+    public record UserIdRequestDto([Required] string UserId);
 
 }

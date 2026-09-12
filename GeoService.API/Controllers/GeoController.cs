@@ -1,5 +1,6 @@
 ﻿using GeoService.Domain.Abstractions;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 
 
 namespace GeoService.API.Controllers
@@ -45,7 +46,7 @@ namespace GeoService.API.Controllers
 
         //[HttpGet("suggestsettlements")]
         [HttpGet("settlements/suggestions")]
-        public async Task<IActionResult> GetSuggestions([FromQuery] string query, [FromQuery] string countryCode, [FromQuery] string regionCode)
+        public async Task<IActionResult> GetSuggestions([Required][FromQuery] string query, [Required][FromQuery] string countryCode, [Required][FromQuery] string regionCode)
         {
             if (string.IsNullOrWhiteSpace(query)) return BadRequest("query is required");
             var res = await _geoapifyGeoService.GetSettlementSuggestionsAsync(countryCode, regionCode, query);
@@ -54,7 +55,7 @@ namespace GeoService.API.Controllers
 
         //[HttpGet("suggestadress")]
         [HttpGet("addresses/suggestions")]
-        public async Task<IActionResult> GetAdresses([FromQuery] string countryCode, [FromQuery] string stateCode, [FromQuery] string city, [FromQuery] string streetAndNumber)
+        public async Task<IActionResult> GetAdresses([Required][FromQuery] string countryCode, [Required][FromQuery] string stateCode, [Required][FromQuery] string city, [Required][FromQuery] string streetAndNumber)
         {
             if (string.IsNullOrWhiteSpace(streetAndNumber)) return BadRequest("query is required");
             var res = await _geoapifyGeoService.GetAddressSuggestionsAsync(countryCode, stateCode, city, streetAndNumber );
@@ -63,7 +64,7 @@ namespace GeoService.API.Controllers
         
         // GET /api/Geo/postcodes?countryCode=US&stateCode=TX&settlement=houston&limit=10
         [HttpGet("postcodes")]
-        public async Task<IActionResult> GetPostcodes([FromQuery] string countryCode, [FromQuery] string regionCode, [FromQuery] string settlement, [FromQuery] string streetAndNumber)
+        public async Task<IActionResult> GetPostcodes([Required][FromQuery] string countryCode, [Required][FromQuery] string regionCode, [Required][FromQuery] string settlement, [Required][FromQuery] string streetAndNumber)
         {
             //if (string.IsNullOrWhiteSpace(countryCode) || string.IsNullOrWhiteSpace(stateCode) || string.IsNullOrWhiteSpace(settlement))
             //    return BadRequest("countryCode, stateCode and settlement are required");
@@ -74,7 +75,7 @@ namespace GeoService.API.Controllers
 
         //[HttpGet("verifyaddress")]
         [HttpPost("addresses/verifications")]
-        public async Task<IActionResult> VerifyAddress([FromBody] string text)
+        public async Task<IActionResult> VerifyAddress([Required][FromBody] string text)
         {
             var res = await _geoapifyGeoService.GetValidatedFullAddress(text);
             return Ok(res);

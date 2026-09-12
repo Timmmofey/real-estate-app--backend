@@ -2,7 +2,7 @@
 {
     public class VerificationCodeDto
     {
-        public string Code { get; set; } = default!;
+        public required string Code { get; set; } = default!;
     }
 
 }

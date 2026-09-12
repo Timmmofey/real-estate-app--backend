@@ -2,6 +2,7 @@
 using Classified.Shared.DTOs;
 using Classified.Shared.Extensions.ServerJwtAuth;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 using TranslationService.Domain.Abstractions;
 
 namespace TranslationService.API.Controllers
@@ -19,7 +20,7 @@ namespace TranslationService.API.Controllers
 
         [AuthorizeServerJwt(InternalServices.GeoService)]
         [HttpGet("multiple")]
-        public async Task<MultiLanguageTranslationResultDto?> multipleTranslate(string text)
+        public async Task<MultiLanguageTranslationResultDto?> multipleTranslate([Required] string text)
         {
             return await _googleTranslateService.MultipleTranslateAsync(text) ?? null;
         }

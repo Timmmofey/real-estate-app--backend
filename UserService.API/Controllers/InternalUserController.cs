@@ -3,6 +3,8 @@ using Classified.Shared.DTOs;
 using Classified.Shared.Extensions.ServerJwtAuth;
 using Classified.Shared.Extensions.ServerJwtAuth.Classified.Shared.Extensions.ServerJwtAuth;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using System.ComponentModel.DataAnnotations;
 using UserService.Application.Abstactions;
 using UserService.Application.DTOs;
 using UserService.Application.Services;
@@ -24,7 +26,7 @@ namespace UserService.API.Controllers
 
         [AuthorizeServerJwt(InternalServices.AuthService)]
         [HttpGet("get-user-id-by-email")]
-        public async Task<Guid?> GetUserIdByEmailAsync(string email, CancellationToken ct)
+        public async Task<Guid?> GetUserIdByEmailAsync([BindRequired] string email, CancellationToken ct)
         {
             var result = await _userService.GetUserIdByEmailAsync(email, ct);
 
@@ -34,16 +36,16 @@ namespace UserService.API.Controllers
         [AuthorizeServerJwt(InternalServices.AuthService)]
         [AuthorizeServerJwtBySub("verify-user-credentials")]
         [HttpPost("verify-user-credentials")]
-        public async Task<IActionResult> VerifyUserCredentials([FromBody] VerifyUserCredentialsRequestDto dto, CancellationToken ct)
+        public async Task<ActionResult<VerifiedUserDto?>> VerifyUserCredentials([FromBody][BindRequired] VerifyUserCredentialsRequestDto dto, CancellationToken ct)
         {
             var verifiedUserDto = await _userService.VerifyUsersCredentials(dto.PhoneOrEmail, dto.Password, ct);
-
+ 
             return Ok(verifiedUserDto);
         }
 
         [AuthorizeServerJwt(InternalServices.AuthService)]
         [HttpGet("get-verified-user-dto-by-id")]
-        public async Task<VerifiedUserDto?> GetVerifiedUserDtoById(string userId, CancellationToken ct)
+        public async Task<VerifiedUserDto?> GetVerifiedUserDtoById([BindRequired] string userId, CancellationToken ct)
         {
             var user = await _userService.GetVerifiedUserDtoById(Guid.Parse(userId), ct);
 
@@ -52,7 +54,7 @@ namespace UserService.API.Controllers
 
         [AuthorizeServerJwt(InternalServices.AuthService)]
         [HttpPost("connect-oauth-account-to-existing-user")]
-        public async Task<IActionResult> ConnectOauthAccountToExistingUser([FromBody] ConnectOAuthAccountRequestDto request, CancellationToken ct)
+        public async Task<IActionResult> ConnectOauthAccountToExistingUser([FromBody][BindRequired] ConnectOAuthAccountRequestDto request, CancellationToken ct)
         {
             await _userOAuthAccountService.ConnectOauthAccountToExistingUser(request.Provider, request.ProviderId, request.UserId, ct);
 
@@ -62,8 +64,8 @@ namespace UserService.API.Controllers
         [AuthorizeServerJwt(InternalServices.AuthService)]
         [HttpGet("get-user-o-auth-account-by-provider-and-provider-user-id")]
         public async Task<ActionResult<UserOAuthAccountDto>> GetUserOAuthAccountByProviderAndProviderUserIdAsync(
-            string providerName,
-            string providerUserId,
+            [FromQuery, Required] string providerName,
+            [FromQuery, Required] string providerUserId,
             CancellationToken ct)
         {
             if (!Enum.TryParse<OAuthProvider>(providerName, true, out var provider))

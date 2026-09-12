@@ -2,6 +2,7 @@
 using Classified.Shared.Constants;
 using Classified.Shared.Extensions.ServerJwtAuth;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 using UserService.Application.DTOs;
 
 namespace AuthService.API.Controllers
@@ -20,7 +21,7 @@ namespace AuthService.API.Controllers
 
         [AuthorizeServerJwt(InternalServices.UserService)]
         [HttpPost("password-reset-token")]
-        public IActionResult getResetPasswordResetToken(UserIdRequestDto dto)
+        public IActionResult getResetPasswordResetToken([Required] UserIdRequestDto dto)
         {
             var resetPasswordJwt = _jwtProvider.GenerateResetPasswordResetToken(Guid.Parse(dto.UserId));
 
@@ -29,7 +30,7 @@ namespace AuthService.API.Controllers
 
         [AuthorizeServerJwt(InternalServices.UserService)]
         [HttpPost("email-reset-token")]
-        public IActionResult getResetEmailResetToken([FromBody] GetResetEmailResetTokenRequestDto dto)
+        public IActionResult getResetEmailResetToken([Required][FromBody] GetResetEmailResetTokenRequestDto dto)
         {
             var resetEmailJwt = _jwtProvider.GenerateResetEmailResetToken(Guid.Parse(dto.userId), dto.newEmail);
 
@@ -38,7 +39,7 @@ namespace AuthService.API.Controllers
 
         [AuthorizeServerJwt(InternalServices.UserService)]
         [HttpPost("request-new-email-cofirmation-token")]
-        public IActionResult getRequestNewEmailCofirmationToken(UserIdRequestDto dto)
+        public IActionResult getRequestNewEmailCofirmationToken([Required] UserIdRequestDto dto)
         {
             var resetPasswordJwt = _jwtProvider.GenerateRequestNewEmailCofirmationToken(Guid.Parse(dto.UserId));
 

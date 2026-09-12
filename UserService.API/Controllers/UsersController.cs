@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
 using Microsoft.IdentityModel.Tokens;
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using UserService.API.Resources;
 using UserService.Application.Abstactions;
@@ -222,7 +223,7 @@ namespace UserService.API.Controllers
         //[HttpPost("toggle-two-factor-authentication")]
         [AccessAuthorize]
         [HttpPut("me/2fa-toggle")]
-        public async Task<IActionResult> ToggleTwoFactorAuthentication(VerificationCodeDto dto, CancellationToken ct)
+        public async Task<IActionResult> ToggleTwoFactorAuthentication([Required] VerificationCodeDto dto, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
 
@@ -239,7 +240,7 @@ namespace UserService.API.Controllers
 
         //[HttpPost("start-password-reset-via-email")]
         [HttpPost("password-reset/request")]
-        public async Task<IActionResult> StartPasswordResetViaEmail([FromForm] string email, CancellationToken ct)
+        public async Task<IActionResult> StartPasswordResetViaEmail([Required][FromForm] string email, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(email))
                 return BadRequest("Email is required");
@@ -251,7 +252,7 @@ namespace UserService.API.Controllers
 
         //[HttpPost("get-password-reset-token-via-email")]
         [HttpPost("password-reset/verify")]
-        public async Task<IActionResult> GetPasswordResetTokenViaEmail([FromBody] GetPasswordResetTokenRequestDto dto, CancellationToken ct)
+        public async Task<IActionResult> GetPasswordResetTokenViaEmail([Required][FromBody] GetPasswordResetTokenRequestDto dto, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(dto.Email) || string.IsNullOrWhiteSpace(dto.VerificationCode))
                 return BadRequest("Email and verification code are required");
@@ -266,7 +267,7 @@ namespace UserService.API.Controllers
         //[HttpPost("complete-password-restoration-via-email")]
         [Authorize(Policy = nameof(JwtTokenType.PasswordReset))]
         [HttpPut("password-reset/complete")]
-        public async Task<IActionResult> CompletePasswordResorationViaEmail([FromForm] string newPassword, CancellationToken ct)
+        public async Task<IActionResult> CompletePasswordResorationViaEmail([Required][FromForm] string newPassword, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request, CookieNames.PasswordReset);
 
@@ -279,7 +280,7 @@ namespace UserService.API.Controllers
 
         //[HttpGet("get-user-role-by-id")]
         [HttpGet("{userId}/role")]
-        public async Task<UserRole?> GetUserRoleById(string userId, CancellationToken ct)
+        public async Task<UserRole?> GetUserRoleById([Required] string userId, CancellationToken ct)
         {
             var user = await _userService.GetUserById(Guid.Parse(userId), ct);
 
@@ -306,7 +307,7 @@ namespace UserService.API.Controllers
 
         //[HttpPost("confirm-current-email")]
         [HttpPost("me/email-change/confirm-current")]
-        public async Task<IActionResult> ConfirmCurrentEmail([FromBody] VerificationCodeDto dto, CancellationToken ct)
+        public async Task<IActionResult> ConfirmCurrentEmail([Required][FromBody] VerificationCodeDto dto, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
 
@@ -320,7 +321,7 @@ namespace UserService.API.Controllers
         //[HttpPost("send-new-email-cofirmation-code")]
         [Authorize(Policy = nameof(JwtTokenType.RequestNewEmailCofirmation))]
         [HttpPost("me/email-change/send-new-code")]
-        public async Task<IActionResult> SendCofirmationCodeToNewEmail([FromBody] EmailRequestDto dto, CancellationToken ct)
+        public async Task<IActionResult> SendCofirmationCodeToNewEmail([Required][FromBody] EmailRequestDto dto, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request, CookieNames.RequestNewEmailCofirmation);
 
@@ -406,7 +407,7 @@ namespace UserService.API.Controllers
         //[HttpPost("unlink-oauth-account-from-me")]
         [AccessAuthorize]
         [HttpDelete("me/oauth-accounts/{provider}")]
-        public async Task<IActionResult> UnlinkOAuthAccountFromMe([FromRoute] OAuthProvider provider, CancellationToken ct)
+        public async Task<IActionResult> UnlinkOAuthAccountFromMe([Required][FromRoute] OAuthProvider provider, CancellationToken ct)
         {
             var userId = ClaimsPrincipalExtensions.GetUserId(Request);
 

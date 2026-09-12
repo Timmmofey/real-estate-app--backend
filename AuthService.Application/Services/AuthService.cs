@@ -39,16 +39,7 @@ namespace AuthService.Application.Services
 
         public async Task<(TokenResponseDto?, string?, string?)> LoginAsync(string phoneOrEmail, string password, Guid deviceId, CancellationToken ct)
         {
-            VerifiedUserDto? user;
-            //try
-            //{
-            //     user = await _userServiceClient.VerifyUserCredentialsAsync(phoneOrEmail, password);
-            //}
-            //catch (Exception ex)
-            //{
-            //    throw new Exception($"{ex}");
-            //}
-            user = await _userServiceClient.VerifyUserCredentialsAsync(phoneOrEmail, password, ct);
+            VerifiedUserDto? user = await _userServiceClient.VerifyUserCredentialsAsync(phoneOrEmail, password, ct);
 
 
             if (user == null)
@@ -75,21 +66,6 @@ namespace AuthService.Application.Services
                     Code = code,
                     UserRole = user.Role
                 };
-
-                //try
-                //{
-                //    await _redisService.SetAsync(
-                //        key: $"{RedisKey.TwoFactorAuth}:{user.Id}",
-                //        value: System.Text.Json.JsonSerializer.Serialize(redisData),
-                //        expiration: TimeSpan.FromMinutes(5)
-                //    );
-
-                //    await _emailService.SendEmail(user.Email, "Two factor auth code", code);
-                //}
-                //catch (Exception ex)
-                //{
-                //    throw new Exception($"{ex}");
-                //}
 
                 await _redisService.SetAsync(
                         key: $"{RedisKey.TwoFactorAuth}:{user.Id}",
@@ -150,24 +126,6 @@ namespace AuthService.Application.Services
                     UserRole = user.Role
                 };
 
-                //try
-                //{
-                //    await _redisService.SetAsync(
-                //        key: $"{RedisKey.TwoFactorAuth}:{user.Id}",
-                //        value: System.Text.Json.JsonSerializer.Serialize(redisData),
-                //        expiration: TimeSpan.FromMinutes(5)
-                //    );
-
-                //    await _emailService.SendEmail(
-                //        user.Email,
-                //        "Two factor authentication code",
-                //        code
-                //    );
-                //}
-                //catch (Exception ex)
-                //{
-                //    throw new Exception($"Two-factor auth error: {ex.Message}");
-                //}
                 await _redisService.SetAsync(
                         key: $"{RedisKey.TwoFactorAuth}:{user.Id}",
                         value: System.Text.Json.JsonSerializer.Serialize(redisData),

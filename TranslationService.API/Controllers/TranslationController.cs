@@ -1,5 +1,6 @@
 ﻿using Classified.Shared.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 using TranslationService.Domain.Abstractions;
 
 namespace TranslationService.API.Controllers
@@ -16,14 +17,14 @@ namespace TranslationService.API.Controllers
         }
 
         [HttpGet("single")]
-        public async Task<IActionResult> translate(string text, string targetLanguage) {
+        public async Task<IActionResult> translate([Required]string text, [Required] string targetLanguage) {
             var res = await _googleTranslateService.TranslateAsync(text, targetLanguage);
 
             return Ok(res);
         }
 
         [HttpGet("multiple")]
-        public async Task<MultiLanguageTranslationResultDto?> multipleTranslate(string text)
+        public async Task<MultiLanguageTranslationResultDto?> multipleTranslate([Required] string text)
         {
             return await _googleTranslateService.MultipleTranslateAsync(text) ?? null;
         }

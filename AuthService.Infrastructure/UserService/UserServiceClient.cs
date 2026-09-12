@@ -21,9 +21,15 @@ namespace AuthService.Infrastructure.UserService
 
         private readonly string _serviceName = InternalServices.UserService;
 
-        public async Task<VerifiedUserDto?> VerifyUserCredentialsAsync(string phoneOrEmail, string password, CancellationToken ct)
+        public async Task<VerifiedUserDto?> VerifyUserCredentialsAsync(
+            string phoneOrEmail,
+            string password,
+            CancellationToken ct)
         {
-            _http.SetServerJwt(_microserviceJwtProvider, _serviceName, "verify-user-credentials");
+            _http.SetServerJwt(
+                _microserviceJwtProvider,
+                _serviceName,
+                "verify-user-credentials");
 
             var request = new
             {
@@ -31,13 +37,19 @@ namespace AuthService.Infrastructure.UserService
                 Password = password
             };
 
-            var response = await _http.PostAsJsonAsync($"internal-api/users/verify-user-credentials", request, ct);
+            var response = await _http.PostAsJsonAsync(
+                "internal-api/users/verify-user-credentials",
+                request,
+                ct);
 
-            if (!response.IsSuccessStatusCode) 
-                throw new UnauthorizedAccessException($"error:{response.RequestMessage}");
+            response.EnsureSuccessStatusCode();
 
-            return await response.Content.ReadFromJsonAsync<VerifiedUserDto>();
+            if (response.Content.Headers.ContentLength == 0)
+                return null;
+
+            return await response.Content.ReadFromJsonAsync<VerifiedUserDto>(ct);
         }
+
 
         public async Task<VerifiedUserDto?> GetVerifiedUserDtoByIdAsync(string userId, CancellationToken ct)
         {

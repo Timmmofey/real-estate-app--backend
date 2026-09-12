@@ -297,17 +297,17 @@ namespace UserService.Application.Services
             return userId;
         }
 
-        public async Task<VerifiedUserDto> VerifyUsersCredentials(string emailOrPhone, string password, CancellationToken ct)
+        public async Task<VerifiedUserDto?> VerifyUsersCredentials(string emailOrPhone, string password, CancellationToken ct)
         {
             var existingUser = await _userRepository.FindUserByEmailOrPhoneAsync(ct, emailOrPhone, emailOrPhone);
             var isDeleted = false;
 
-            if (existingUser?.PasswordHash == null)
-                throw new NullReferenceException();
+            
 
-            if (existingUser == null || !_passwordHasher.Verify(password, existingUser.PasswordHash) || existingUser.IsPermanantlyDeleted == true || (existingUser.IsSoftDeleted == true && existingUser.DeletedAt < DateTime.UtcNow.AddMonths(-6)))
-            { 
-                throw new UnauthorizedAccessException("Provided credentials are not valid.");
+            if (existingUser?.PasswordHash == null || existingUser == null || !_passwordHasher.Verify(password, existingUser.PasswordHash) || existingUser.IsPermanantlyDeleted == true || (existingUser.IsSoftDeleted == true && existingUser.DeletedAt < DateTime.UtcNow.AddMonths(-6)))
+            {
+                //throw new UnauthorizedAccessException("Provided credentials are not valid.");
+                return null;
             }
             
 

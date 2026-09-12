@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
+using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
@@ -35,7 +36,7 @@ namespace AuthService.API.Controllers
 
         [AllowAnonymous]
         [HttpPost("login")]
-        public async Task<IActionResult> Login(LoginRequestDto dto, CancellationToken ct)
+        public async Task<IActionResult> Login([Required] LoginRequestDto dto, CancellationToken ct)
         {
             try
             {
@@ -89,7 +90,7 @@ namespace AuthService.API.Controllers
         //[HttpPost("login-via-two-factor-auth")]
         [Authorize(Policy = nameof(JwtTokenType.TwoFactorAuthentication))]
         [HttpPost("login/2fa")]
-        public async Task<IActionResult> LoginViaTwoFactorAuth([FromBody]string code, CancellationToken ct)
+        public async Task<IActionResult> LoginViaTwoFactorAuth([Required][FromBody]string code, CancellationToken ct)
         {
             if (!Request.Cookies.TryGetValue(CookieNames.TwoFactorAuthentication, out var twoFactorAuthenticationToken) || string.IsNullOrEmpty(code))
                 return Unauthorized("2FA token is missing or invalid.");
@@ -306,20 +307,19 @@ namespace AuthService.API.Controllers
             var userId = User.Claims.FirstOrDefault(r => r.Type == "userId")?.Value;
 
             if (userId == null)
-            {
                 return Unauthorized();
-            }
 
             CookieHepler.RemoveRefreshAuthDeviceTokens(Response);
 
             await _authService.LogoutAllAsync(Guid.Parse(userId), ct);
+
             return NoContent();
         }
 
         //[HttpPost("terminate-session")]
         [AccessAuthorize]
         [HttpDelete("sessions/{sessionId}")]
-        public async Task<IActionResult> TerminateSessionAsync(Guid sessionId, CancellationToken ct)
+        public async Task<IActionResult> TerminateSessionAsync([Required] Guid sessionId, CancellationToken ct)
         {
             if (sessionId == Guid.Empty)
                 return BadRequest("Session id is required.");

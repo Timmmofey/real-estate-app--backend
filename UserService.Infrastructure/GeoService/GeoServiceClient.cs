@@ -1,7 +1,7 @@
 ﻿using Classified.Shared.Constants;
-using Classified.Shared.Extensions;
 using Classified.Shared.Infrastructure.MicroserviceJwt;
 using Classified.Shared.Libs;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace UserService.Infrastructure.GeoService
 {
@@ -21,10 +21,16 @@ namespace UserService.Infrastructure.GeoService
         {
             _http.SetServerJwt(_microserviceJwtProvider, _serviceName);
 
-            var response = await _http.GetAsync($"internal-api/Geo/settlements/verifications?countryCode={countryCode}&regionCode={regionCode}&settlement={settlement}");
+            var queryParams = new Dictionary<string, string?>
+            {
+                { "countryCode", countryCode },
+                { "regionCode", regionCode },
+                { "settlement", settlement },
+            };
 
-            if (!response.IsSuccessStatusCode)
-                return false;
+            var url = QueryHelpers.AddQueryString("internal-api/Geo/settlements/verifications", queryParams);
+
+            var response = await _http.GetAsync(url);
 
             return response.IsSuccessStatusCode;
         }

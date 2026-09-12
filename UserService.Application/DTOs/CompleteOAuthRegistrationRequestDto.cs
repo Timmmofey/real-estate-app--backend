@@ -1,9 +1,12 @@
 ﻿using Microsoft.AspNetCore.Http;
+using System.ComponentModel.DataAnnotations;
 
 namespace UserService.Application.DTOs
 {
     public record CompleteOAuthRegistrationRequestDto(
+        [Required]
         string UserRole,
+        [Required]
         string PhoneNumber,
         IFormFile? MainPhoto,
         string? Password,
