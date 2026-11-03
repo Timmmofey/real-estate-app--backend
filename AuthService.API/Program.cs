@@ -9,7 +9,7 @@ using AuthService.Persistance.PostgreSQL.Services;
 using AuthService.Persistance.Repositories;
 using Classified.Shared.Extensions;
 using Classified.Shared.Extensions.Auth;
-using Classified.Shared.Extensions.RateLimiting;
+using Classified.Shared.Extensions.RateLimiting.Extensions;
 using Classified.Shared.Extensions.ServerJwtAuth;
 using Classified.Shared.Infrastructure.EmailService;
 using Classified.Shared.Infrastructure.MicroserviceJwt;
@@ -100,6 +100,9 @@ builder.Services.AddJwtAuthentication(configuration);
 builder.Services.AddServerJwtAuthentication(builder.Configuration);
 builder.Services.AddSingleton<IMicroserviceJwtProvider, MicroserviceJwtProvider>();
 
+// ”ниверсальный Rate Limiter(Redis | озу)
+builder.Services.AddRateLimiting();
+
 //Cors
 builder.Services.AddDefaultCors(builder.Configuration);
 
@@ -157,8 +160,8 @@ app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 
-//Ћимиты на запросы
-app.UseRedisRateLimiting();
+//Ћимиты на запросы Redis
+app.UseRateLimiting();
 
 app.UseAuthorization();
 

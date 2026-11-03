@@ -127,6 +127,6 @@
     <value>Проверьте правильность введенных данных</value>
   </data>
   <data name="TwoFactorAttemptsExceededException" xml:space="preserve">
-    <value>Превышено количество попыток. Осталось попыток: {0}. Запросите код заново.</value>
+    <value>Превышено количество попыток. Осталось попыток: 0. Запросите код заново.</value>
   </data>
 </root>

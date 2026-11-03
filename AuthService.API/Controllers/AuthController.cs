@@ -5,7 +5,8 @@ using AuthService.Domain.Consts;
 using AuthService.Domain.DTOs;
 using Classified.Shared.Constants;
 using Classified.Shared.Extensions.Auth;
-using Classified.Shared.Extensions.RateLimiting;
+using Classified.Shared.Extensions.RateLimiting.Attributes;
+using Classified.Shared.Extensions.RateLimiting.Enums;
 using Classified.Shared.Functions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -89,7 +90,7 @@ namespace AuthService.API.Controllers
         }
 
         //[HttpPost("login-via-two-factor-auth")]
-        [RedisRateLimit(5, 60, RateLimitStrategy.UserAndIP, JwtTokenType.TwoFactorAuthentication)]
+        [RateLimit(5, 60,RateLimitStrategy.UserAndIP, JwtTokenType.TwoFactorAuthentication, RateLimitStorage.Memory)]
         [Authorize(Policy = nameof(JwtTokenType.TwoFactorAuthentication))]
         [HttpPost("login/2fa")]
         public async Task<IActionResult> LoginViaTwoFactorAuth([Required][FromBody]string code, CancellationToken ct)
