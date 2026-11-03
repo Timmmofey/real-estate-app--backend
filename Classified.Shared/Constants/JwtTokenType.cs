@@ -2,6 +2,7 @@
 {
     public enum JwtTokenType
     {
+        None = 0,
         Access,
         Refresh,
         Restore,

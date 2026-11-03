@@ -1,6 +1,6 @@
 ﻿namespace UserService.Domain.Abstactions
 {
-    public interface IUnitOfWork
+    public interface IUnitOfWork : IAsyncDisposable
     {
         Task BeginAsync();
         Task CommitAsync();

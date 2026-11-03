@@ -5,6 +5,7 @@ using AuthService.Domain.Consts;
 using AuthService.Domain.DTOs;
 using Classified.Shared.Constants;
 using Classified.Shared.Extensions.Auth;
+using Classified.Shared.Extensions.RateLimiting;
 using Classified.Shared.Functions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -88,6 +89,7 @@ namespace AuthService.API.Controllers
         }
 
         //[HttpPost("login-via-two-factor-auth")]
+        [RedisRateLimit(5, 60, RateLimitStrategy.UserAndIP, JwtTokenType.TwoFactorAuthentication)]
         [Authorize(Policy = nameof(JwtTokenType.TwoFactorAuthentication))]
         [HttpPost("login/2fa")]
         public async Task<IActionResult> LoginViaTwoFactorAuth([Required][FromBody]string code, CancellationToken ct)
@@ -114,6 +116,25 @@ namespace AuthService.API.Controllers
                 CookieHepler.SetCookie(Response, CookieNames.Refresh, tokens.RefreshToken, days: 150);
 
                 return Ok();
+            }
+            catch (InvalidTwoFactorCodeException ex)
+            {
+                if (ex.RemainingAttempts > 0)
+                {
+                    return Conflict(new
+                    {
+                        Message = _localizer["InvalidTwoFactorCodeException", ex.RemainingAttempts].Value,
+                        Status = LoginStatus.InvalidTwoFactorCode,
+                        RemainingAttempts = ex.RemainingAttempts
+                    });
+                }
+
+                return Conflict(new
+                {
+                    Message = _localizer["TwoFactorAttemptsExceededException"].Value,
+                    Status = LoginStatus.TwoFactorAttemptsExceeded,
+                    RemainingAttempts = 0
+                });
             }
             catch (Exception ex)
             {

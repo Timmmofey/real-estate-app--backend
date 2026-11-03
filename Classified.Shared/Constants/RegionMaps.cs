@@ -185,13 +185,13 @@
             }
         };
 
-        public static bool IsCountryAllowed(string? country)
+        public static bool IsCountryAllowed(string country)
         {
             return TryParseCountry(country, out var countryCode) &&
                    Countries.ContainsKey(countryCode);
         }
 
-        public static bool IsRegionAllowed(string? country, string? regionCode)
+        public static bool IsRegionAllowed(string country, string regionCode)
         {
             return TryParseCountry(country, out var countryCode) &&
                    !string.IsNullOrWhiteSpace(regionCode) &&
@@ -199,7 +199,7 @@
                    regions.ContainsKey(regionCode);
         }
 
-        public static bool IsCountryOrRegionAllowed(string? country, string? regionCode = null)
+        public static bool IsCountryOrRegionAllowed(string country, string? regionCode = null)
         {
             if (!TryParseCountry(country, out var countryCode))
                 return false;
@@ -208,7 +208,7 @@
                    IsRegionAllowed(countryCode.ToString(), regionCode);
         }
 
-        public static string? GetRegionName(string? country, string? regionCode)
+        public static string? GetRegionName(string country, string regionCode)
         {
             if (!TryParseCountry(country, out var countryCode) ||
                 string.IsNullOrWhiteSpace(regionCode))
@@ -220,7 +220,7 @@
                 : null;
         }
 
-        public static string? GetCountryName(string? country)
+        public static string? GetCountryName(string country)
         {
             return TryParseCountry(country, out var countryCode) &&
                    Countries.TryGetValue(countryCode, out var name)
@@ -228,7 +228,7 @@
                 : null;
         }
 
-        private static bool TryParseCountry(string? value, out CountryCode country)
+        private static bool TryParseCountry(string value, out CountryCode country)
         {
             return Enum.TryParse(value, ignoreCase: true, out country);
         }

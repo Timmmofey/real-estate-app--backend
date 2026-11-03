@@ -9,6 +9,7 @@ using AuthService.Persistance.PostgreSQL.Services;
 using AuthService.Persistance.Repositories;
 using Classified.Shared.Extensions;
 using Classified.Shared.Extensions.Auth;
+using Classified.Shared.Extensions.RateLimiting;
 using Classified.Shared.Extensions.ServerJwtAuth;
 using Classified.Shared.Infrastructure.EmailService;
 using Classified.Shared.Infrastructure.MicroserviceJwt;
@@ -75,6 +76,10 @@ builder.Services.AddAppLocalization();
 
 //Redis
 builder.Services.AddScoped<IRedisService, RedisService>();
+//builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+//    ConnectionMultiplexer.Connect(
+//        builder.Configuration["Redis:BaseUrl"]!
+//    ));
 builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect("localhost:6379"));
 
 //Email service
@@ -147,12 +152,13 @@ app.UseRouting();
 
 app.UseAppLocalization();
 
-
-
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
+
+//Лимиты на запросы
+app.UseRedisRateLimiting();
 
 app.UseAuthorization();
 

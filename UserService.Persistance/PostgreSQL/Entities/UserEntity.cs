@@ -1,5 +1,4 @@
-﻿
-using Classified.Shared.Entities;
+﻿using Classified.Shared.Entities;
 
 namespace UserService.Persistance.PostgreSQL.Entities
 {

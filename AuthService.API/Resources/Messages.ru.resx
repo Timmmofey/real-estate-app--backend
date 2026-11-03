@@ -120,7 +120,13 @@
   <data name="BlockedUserAccountException" xml:space="preserve">
     <value>Этот аккаунт был заблокирован и-за нарушения правил платформы.</value>
   </data>
+  <data name="InvalidTwoFactorCodeException" xml:space="preserve">
+    <value>Неверный код подтверждения. Осталось попыток: {0}.</value>
+  </data>
   <data name="InvalidСredentialsException" xml:space="preserve">
     <value>Проверьте правильность введенных данных</value>
+  </data>
+  <data name="TwoFactorAttemptsExceededException" xml:space="preserve">
+    <value>Превышено количество попыток. Осталось попыток: {0}. Запросите код заново.</value>
   </data>
 </root>

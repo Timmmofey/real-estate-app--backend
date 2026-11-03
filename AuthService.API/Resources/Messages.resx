@@ -120,7 +120,13 @@
   <data name="BlockedUserAccountException" xml:space="preserve">
     <value>This account was banned due to platform violations.</value>
   </data>
+  <data name="InvalidTwoFactorCodeException" xml:space="preserve">
+    <value>Invalid code. {0} attempts remaining.</value>
+  </data>
   <data name="InvalidСredentialsException" xml:space="preserve">
     <value>Check your credentials</value>
+  </data>
+  <data name="TwoFactorAttemptsExceededException" xml:space="preserve">
+    <value>Too many attempts. {0} attempts left. Please request a new code.</value>
   </data>
 </root>

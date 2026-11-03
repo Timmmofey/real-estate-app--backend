@@ -12,6 +12,7 @@ using DeviceDetectorNET;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 using UAParser;
+using UserService.Application.DTOs;
 
 
 namespace AuthService.Application.Services
@@ -61,11 +62,7 @@ namespace AuthService.Application.Services
 
                 var twoFactorAuthenticatinToken = _jwtProvider.GenerateTwoFactorAuthToken(user.Id);
 
-                var redisData = new
-                {
-                    Code = code,
-                    UserRole = user.Role
-                };
+                var redisData = new TwoFactorCacheData(Code: code, UserRole: user.Role, RemainingAttempts: 5);
 
                 await _redisService.SetAsync(
                         key: $"{RedisKey.TwoFactorAuth}:{user.Id}",
@@ -117,14 +114,9 @@ namespace AuthService.Application.Services
                     .Replace("-", "")
                     .ToUpper();
 
-                var twoFactorAuthenticationToken =
-                    _jwtProvider.GenerateTwoFactorAuthToken(user.Id);
+                var twoFactorAuthenticationToken = _jwtProvider.GenerateTwoFactorAuthToken(user.Id);
 
-                var redisData = new
-                {
-                    Code = code,
-                    UserRole = user.Role
-                };
+                var redisData = new TwoFactorCacheData(Code: code, UserRole: user.Role, RemainingAttempts: 5);
 
                 await _redisService.SetAsync(
                         key: $"{RedisKey.TwoFactorAuth}:{user.Id}",
@@ -166,21 +158,42 @@ namespace AuthService.Application.Services
 
         public async Task<TokenResponseDto?> LoginViaTWoFactorAuthentication(string userId, string deviceId, string code, CancellationToken ct)
         {
-            var redisValue = await _redisService.GetAsync($"{RedisKey.TwoFactorAuth}:{userId}");
+            string redisKey = $"{RedisKey.TwoFactorAuth}:{userId}";
+            var redisValue = await _redisService.GetAsync(redisKey);
 
             if (string.IsNullOrEmpty(redisValue))
                 throw new Exception("There is no code for this user");
 
-            var redisData = JsonConvert.DeserializeObject<dynamic>(redisValue);
+            var cacheData = System.Text.Json.JsonSerializer.Deserialize<TwoFactorCacheData>(redisValue);
 
-            string storedCode = redisData!.Code;
-            int userRoleValue = (int)redisData!.UserRole;
-            var parsedRole = (UserRole)userRoleValue;
+            if (cacheData == null)
+                throw new Exception("Failed to process security data.");
 
-            if (!string.Equals(storedCode, code, StringComparison.OrdinalIgnoreCase))
-                throw new Exception("Invalid verification code");
+            if (cacheData.RemainingAttempts <= 0)
+            {
+                throw new Exception("No attempts left. Please request a new code.");
+            }
 
-            var tokens = await GenerateTokensAfterLogin(Guid.Parse(userId), parsedRole, Guid.Parse(deviceId), ct);
+            if (!string.Equals(cacheData.Code, code, StringComparison.OrdinalIgnoreCase))
+            {
+                int newAttempts = cacheData.RemainingAttempts - 1;
+
+                if (newAttempts <= 0)
+                {
+                    throw new InvalidTwoFactorCodeException(0);
+                }
+
+                var updatedCacheData = cacheData with { RemainingAttempts = newAttempts };
+
+                await _redisService.SetAsync(
+                    key: redisKey,
+                    value: System.Text.Json.JsonSerializer.Serialize(updatedCacheData),
+                    expiration: TimeSpan.FromMinutes(5)
+                );
+
+                throw new InvalidTwoFactorCodeException(newAttempts);
+            }
+            var tokens = await GenerateTokensAfterLogin(Guid.Parse(userId), cacheData.UserRole, Guid.Parse(deviceId), ct);                  
 
             return tokens;
         }

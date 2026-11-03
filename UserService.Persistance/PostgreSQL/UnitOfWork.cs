@@ -69,5 +69,16 @@ namespace UserService.Persistance.PostgreSQL
                 _transaction = null;
             }
         }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_transaction != null)
+            {
+                // Если транзакция не null, значит CommitAsync или RollbackAsync не были вызваны.
+                // Произошла ошибка. Просто уничтожаем транзакцию — БД сама сделает Rollback.
+                await _transaction.DisposeAsync();
+                _transaction = null;
+            }
+        }
     }
 }

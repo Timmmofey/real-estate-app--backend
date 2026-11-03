@@ -7,5 +7,7 @@
         public const string TwoFactor = "TwoFactor";
         public const string InvalidCredentials = "InvalidCredentials";
         public const string Blocked = "Blocked";
+        public const string InvalidTwoFactorCode = "InvalidTwoFactorCode";
+        public const string TwoFactorAttemptsExceeded = "TwoFactorAttemptsExceeded";
     }
 }

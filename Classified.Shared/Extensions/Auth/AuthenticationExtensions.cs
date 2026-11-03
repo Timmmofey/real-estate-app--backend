@@ -1,4 +1,5 @@
 ﻿using Classified.Shared.Constants;
+using Classified.Shared.Infrastructure.JWT;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -90,19 +91,7 @@ namespace Classified.Shared.Extensions.Auth
                                 return false;
 
                             // map tokenType -> cookie name
-                            string? cookieName = tokenType switch
-                            {
-                                JwtTokenType.Access => CookieNames.Auth,
-                                JwtTokenType.Refresh => CookieNames.Refresh,
-                                JwtTokenType.Device => CookieNames.Device,
-                                JwtTokenType.PasswordReset => CookieNames.PasswordReset,
-                                JwtTokenType.TwoFactorAuthentication => CookieNames.TwoFactorAuthentication,
-                                JwtTokenType.Restore => CookieNames.Restore,
-                                JwtTokenType.RequestNewEmailCofirmation => CookieNames.RequestNewEmailCofirmation, 
-                                JwtTokenType.EmailReset => CookieNames.EmailReset, 
-                                JwtTokenType.OAuthRegistration => CookieNames.OAuthRegistration, 
-                                _ => null
-                            };
+                            var cookieName = JwtTokenCookieMapper.GetCookieName(tokenType);
 
                             if (string.IsNullOrEmpty(cookieName))
                                 return false;
