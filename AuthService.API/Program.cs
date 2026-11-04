@@ -9,11 +9,14 @@ using AuthService.Persistance.PostgreSQL.Services;
 using AuthService.Persistance.Repositories;
 using Classified.Shared.Extensions;
 using Classified.Shared.Extensions.Auth;
-using Classified.Shared.Extensions.RateLimiting.Extensions;
+using Classified.Shared.Extensions.RateLimiting;
 using Classified.Shared.Extensions.ServerJwtAuth;
+using Classified.Shared.Infrastructure.AttemptService.Extensions;
 using Classified.Shared.Infrastructure.EmailService;
 using Classified.Shared.Infrastructure.MicroserviceJwt;
 using Classified.Shared.Infrastructure.RedisService;
+using Classified.Shared.Libs.CodeHasher;
+using DeviceDetectorNET.Parser.Device;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
@@ -93,6 +96,9 @@ builder.Services.AddMemoryCache(options =>
     options.SizeLimit = 150_000; 
 });
 
+//AttemptService
+builder.Services.AddSharedRedisAttempts();
+
 //JwtAuth
 builder.Services.AddJwtAuthentication(configuration);
 
@@ -100,8 +106,8 @@ builder.Services.AddJwtAuthentication(configuration);
 builder.Services.AddServerJwtAuthentication(builder.Configuration);
 builder.Services.AddSingleton<IMicroserviceJwtProvider, MicroserviceJwtProvider>();
 
-// ”ниверсальный Rate Limiter(Redis | озу)
-builder.Services.AddRateLimiting();
+//Code Hasher
+builder.Services.AddCodesHasher(configuration);
 
 //Cors
 builder.Services.AddDefaultCors(builder.Configuration);
@@ -160,8 +166,8 @@ app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 
-//Ћимиты на запросы Redis
-app.UseRateLimiting();
+//Ћимиты на запросы
+app.UseRedisRateLimiting();
 
 app.UseAuthorization();
 

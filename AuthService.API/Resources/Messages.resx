@@ -127,6 +127,6 @@
     <value>Check your credentials</value>
   </data>
   <data name="TwoFactorAttemptsExceededException" xml:space="preserve">
-    <value>Too many attempts. 0 attempts left. Please request a new code.</value>
+    <value>Too many attempts. {0} attempts left. Please request a new code.</value>
   </data>
 </root>

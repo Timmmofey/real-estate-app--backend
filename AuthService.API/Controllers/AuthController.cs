@@ -5,8 +5,7 @@ using AuthService.Domain.Consts;
 using AuthService.Domain.DTOs;
 using Classified.Shared.Constants;
 using Classified.Shared.Extensions.Auth;
-using Classified.Shared.Extensions.RateLimiting.Attributes;
-using Classified.Shared.Extensions.RateLimiting.Enums;
+using Classified.Shared.Extensions.RateLimiting;
 using Classified.Shared.Functions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -90,7 +89,7 @@ namespace AuthService.API.Controllers
         }
 
         //[HttpPost("login-via-two-factor-auth")]
-        [RateLimit(5, 60,RateLimitStrategy.UserAndIP, JwtTokenType.TwoFactorAuthentication, RateLimitStorage.Memory)]
+        [RedisRateLimit(10, 60, RateLimitStrategy.UserAndIP, JwtTokenType.TwoFactorAuthentication)]
         [Authorize(Policy = nameof(JwtTokenType.TwoFactorAuthentication))]
         [HttpPost("login/2fa")]
         public async Task<IActionResult> LoginViaTwoFactorAuth([Required][FromBody]string code, CancellationToken ct)
@@ -134,7 +133,7 @@ namespace AuthService.API.Controllers
                 {
                     Message = _localizer["TwoFactorAttemptsExceededException"].Value,
                     Status = LoginStatus.TwoFactorAttemptsExceeded,
-                    RemainingAttempts = 0
+                    RemainingAttempts = ex.RemainingAttempts
                 });
             }
             catch (Exception ex)

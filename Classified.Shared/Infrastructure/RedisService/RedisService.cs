@@ -26,6 +26,19 @@ namespace Classified.Shared.Infrastructure.RedisService
             await _database.KeyDeleteAsync(key);
         }
 
+        // Внутри реализации RedisService (где есть доступ к StackExchange.Redis):
+        public async Task<bool> TryDeleteAsync(string key, string expectedJsonValue)
+        {
+            var transaction = _database.CreateTransaction();
+
+            // Удаляем только если значение не изменилось с момента проверки
+            transaction.AddCondition(Condition.StringEqual(key, expectedJsonValue));
+            _ = transaction.KeyDeleteAsync(key);
+
+            return await transaction.ExecuteAsync();
+        }
+
+
         public async Task<IReadOnlyList<string>> GetManyAsync(IEnumerable<string> keys)
         {
             var redisKeys = keys
@@ -64,6 +77,22 @@ namespace Classified.Shared.Infrastructure.RedisService
                     maxSize,
                     (int)ttl.TotalSeconds
                 });
+        }
+
+        public async Task<bool> TryDecrementAttemptsAsync(string key, string expectedJsonValue, string newJsonValue, TimeSpan expiration)
+        {
+            // Создаем транзакцию Redis
+            var transaction = _database.CreateTransaction();
+
+            // Главное условие (аналог SQL WHERE): 
+            // Выполнить транзакцию ТОЛЬКО если значение в Redis совпадает с тем, что мы прочитали
+            transaction.AddCondition(Condition.StringEqual(key, expectedJsonValue));
+
+            // Выстраиваем команду на запись в очередь транзакции
+            _ = transaction.StringSetAsync(key, newJsonValue, expiration);
+
+            // Выполняем. Если между чтением и записью другой поток изменил данные, ExecuteAsync вернет false
+            return await transaction.ExecuteAsync();
         }
 
 
